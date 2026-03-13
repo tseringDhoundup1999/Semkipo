@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
+    profile_picture = models.ImageField(upload_to="profile_pictures/",null=True,blank=True)
 
     # This tell Django to use email as the unique identifier for authentication instead of username
     USERNAME_FIELD = "email"

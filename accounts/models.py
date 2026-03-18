@@ -6,6 +6,7 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     profile_picture = models.ImageField(upload_to="profile_pictures/",null=True,blank=True)
     is_verified = models.BooleanField(default=False)
+    email_verification_sent_at = models.DateTimeField(null=True,blank=True)
 
     # This tell Django to use email as the unique identifier for authentication instead of username
     USERNAME_FIELD = "email"

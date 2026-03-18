@@ -1,5 +1,6 @@
 from urllib import response
 
+from django.utils import timezone 
 from django.shortcuts import render
 from django.http import HttpResponse
 
@@ -12,21 +13,27 @@ from django.contrib.auth import get_user_model
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
+from rest_framework_simplejwt.tokens import RefreshToken 
 from django.shortcuts import redirect
 
 # ---------
-
-
-
-
-
 class RegisterView(APIView):
     def post(self,request):
         serializer = RegisterSerializer(data=request.data,context={"request":request})
 
         if serializer.is_valid():
-            serializer.save()
-            return Response({"message":"User created successfully"},status=200)
+            user = serializer.save()
+
+            # generates JWT tokens
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
+
+            return Response({
+                "message":"User created successfully",
+                "refresh_token":refresh_token,
+                "access_token":access_token,
+                },status=200)
         return Response(serializer.errors,status=400)
 
 
@@ -53,4 +60,13 @@ class VerifyEmailView(APIView):
             user.save() 
             return Response({"message":"Email verified successfully"},status=200)        
         return Response({"error": "Invalid verification link"}, status=400)
+
+
+
+
+class resend_email_verification_view(APIView):
+
+    def post(self,request):
+        print(request.user)
+        return Response({"message":"Verification email send successfully !"},status=200)
 

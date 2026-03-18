@@ -34,14 +34,13 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
 
         # send email 
-        subject = "Verify your email",
+        subject = "Verify your email"
         message = render_to_string(
                 "accounts/email_verification.html",{"user":user,"verification_url":verification_url}
-        ),
+        )
         from_email = settings.DEFAULT_FROM_EMAIL 
         recipient_list = [user.email]
-        send_mail(subject,message,from_email,recipient_list
-        )
+        send_mail(subject, message, from_email, recipient_list)
         return user
 
 

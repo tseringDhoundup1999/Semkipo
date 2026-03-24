@@ -78,26 +78,25 @@ class VerifyEmailView(APIView):
                 status=500
             )
         
+        # ------------ handle link expire ------------------------------------
+        if self._is_link_expired(user):
+            return Response(
+                {"success": False, "message": "This verification link has expired. Please request a new verification email to continue."},
+                status=410
+            )
         # ------------- Token invalid --------------------------------------- 
         if not default_token_generator.check_token(user,token):
             return Response(
                 {"success": False, "message": "This verification token is invalid or has been tampered with. Please request a new verification email."},
                 status=400
             )
-        # ---------- check if email is verified already --------------------
+        # ---------- check if email is already verified --------------------
         if user.is_verified:
             return Response(
                 {"success": True, "message": "Your email is already verified. You can now log in and enjoy our services."},
                 status=200
             )
             
-          
-            # ------------ handle link expire ------------------------------------
-        if self._is_link_expired(user):
-            return Response(
-                {"success": False, "message": "This verification link has expired. Please request a new verification email to continue."},
-                status=410
-            )
         # ------------ Save Users -------------------------------------
         
         try:
@@ -123,7 +122,7 @@ class VerifyEmailView(APIView):
         if not user.email_verification_sent_at:
             return True 
         expiry = user.email_verification_sent_at + timedelta(minutes=self.VERIFICATION_TIMEOUT_MINUTES)
-        return timezone.now > expiry
+        return timezone.now() > expiry
 
 
 

@@ -62,12 +62,13 @@ class VerifyEmailView(APIView):
 
         except (TypeError,ValueError,OverflowError,ValidationError):
             return Response(
-                {"success":False,"message":"Invalid verification link."},
+                {"success": false,
+                 "message": "The verification link appears to be invalid. Please check the link or request a new verification email."},
                 status=400
             )
         except User.DoesNotExist:
             return Response(
-                {"success":False,"message":"Account not found."},
+                {"success":False,"message":"We could not find an account with this link. Please check the link or register again."},
                 status=404
             )
         except Exception as e:
@@ -80,20 +81,23 @@ class VerifyEmailView(APIView):
         # ------------- Token invalid --------------------------------------- 
         if not default_token_generator.check_token(user,token):
             return Response(
-                {"message":"Invalid or tempered verification token."},
+                {"success": False, "message": "This verification token is invalid or has been tampered with. Please request a new verification email."},
                 status=400
             )
         # ---------- check if email is verified already --------------------
         if user.is_verified:
-            return Response({"message":"Email is already verified."},status=200)
+            return Response(
+                {"success": True, "message": "Your email is already verified. You can now log in and enjoy our services."},
+                status=200
+            )
             
           
             # ------------ handle link expire ------------------------------------
         if self._is_link_expired(user):
             return Response(
-                    {"message":"Verification link has expired. Please request a new one."},
-                    status=410
-                )
+                {"success": False, "message": "This verification link has expired. Please request a new verification email to continue."},
+                status=410
+            )
         # ------------ Save Users -------------------------------------
         
         try:
@@ -104,11 +108,14 @@ class VerifyEmailView(APIView):
         except Exception as e:
             logger.exception("DB error while verifying user_id=%s", user.pk,e)
             return Response(
-                {"success":False,"message":"Could not complete the verification. Please try again later."},
+                {"success": False, "message": "We couldn’t complete your email verification. Please try again in a few minutes."},
                 status=500
                 )
             # ------------ Success -----------------------------------------------
-        return Response({"success":True,"message":"Email verified successfully"},status=200)        
+        return Response(
+            {"success": True, "message": "Your email has been verified successfully! You can now log in and start using your account."},
+            status=200
+        )        
 
 
       

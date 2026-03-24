@@ -88,6 +88,12 @@ EMAIL_HOST_PASSWORD = 'your-app-password'
 DEFAULT_FROM_EMAIL = 'your-email@gmail.com'
 
 
+
+# set env value
+FRONTEND_URL = config("FRONTEND_URL")
+
+
+
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',

@@ -181,9 +181,9 @@ class VerifyEmailView(APIView):
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
 
-        except (TypeError,ValueError,OverflowError,ValidationError):
+        except (TypeError,ValueError,OverflowError,DRFValidationError):
             return Response(
-                {"success": false,
+                {"success": False,
                  "message": "The verification link appears to be invalid. Please check the link or request a new verification email."},
                 status=400
             )

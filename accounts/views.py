@@ -171,7 +171,6 @@ class LogoutView(TokenBlacklistView):
 
 #  verify the email 
 
-logger = logging.getLogger(__name__)
 
 User = get_user_model()
 class VerifyEmailView(APIView):

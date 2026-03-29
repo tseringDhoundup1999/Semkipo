@@ -45,8 +45,10 @@ class create_contact_view(APIView):
                     "success":True,
                     "code":ResponseCodes.CUSTOMER_ALREADY_EXISTS,
                     "message":"Customer already exists.",
-                    "customer_id":customer.id,
-                    "customer_name":customer.name
+                    "data":{
+                        "customer_id":customer.id,
+                        "customer_name":customer.name
+                    }
                 },status=status.HTTP_200_OK)
                     
         #  handle validation error 

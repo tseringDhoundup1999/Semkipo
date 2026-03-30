@@ -10,5 +10,5 @@ class MeasurementTypeAdmin(admin.ModelAdmin):
 
 @admin.register(ItemType)
 class ItemTypeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'Measurement_type', 'price_per_unit')
+    list_display = ('id', 'name', 'measurement_type', 'price_per_unit')
     search_fields = ('name',)

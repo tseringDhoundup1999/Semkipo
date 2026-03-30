@@ -3,7 +3,6 @@ from .models import ItemType, MeasurementType
 
 
 class MeasurementTypeSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(max_length=100)
     class Meta:
         model = MeasurementType
         fields = "__all__"
@@ -16,6 +15,11 @@ class MeasurementTypeSerializer(serializers.ModelSerializer):
 
 
 class ItemTypeSerializer(serializers.ModelSerializer):
+    measurement_type = serializers.PrimaryKeyRelatedField(queryset=MeasurementType.objects.all())
+    
+    measurement_type_detail = MeasurementTypeSerializer(
+        source="measurement_type",read_only=True
+    )
     class Meta:
         model = ItemType
         fields = "__all__"

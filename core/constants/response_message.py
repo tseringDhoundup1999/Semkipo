@@ -31,7 +31,7 @@ class SuccessMessages:
     
     # measurement success messages
     MEASUREMENT_TYPE_CREATED = "Measurement type has been created successfully."
-    ITEM_TYPE_CREATED = "Item type has been created successfully."
+    ITEM_TYPE_CREATED = "Measurement item type has been created successfully."
     
     
 

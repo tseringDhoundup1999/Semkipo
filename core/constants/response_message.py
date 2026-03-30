@@ -45,3 +45,4 @@ class ErrorMessages:
     # measurement error messages
     MEASUREMENT_ALREADY_EXISTS = "Measurement type with the same name already exists."
     ITEM_TYPE_ALREADY_EXISTS = "Item type with the same name already exists."
+    MEASUREMENT_DOES_NOT_EXIST = "Measurement type with the provided id does not exist."

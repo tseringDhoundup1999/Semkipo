@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import MeasurementView, ItemTypeView
+from .views import measurementView, itemTypeView, measurementDetailView
 
 urlpatterns = [
-    path("", MeasurementView.as_view(), name="measurement"),
-    path("item/type", ItemTypeView.as_view(), name="item-types"),
+    path("", measurementView.as_view(), name="measurement"),
+    path('<int:id>', measurementDetailView.as_view(), name="measurement-detail"),
+    path("item/type", itemTypeView.as_view(), name="item-types"),
 ]

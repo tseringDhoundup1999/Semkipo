@@ -18,7 +18,7 @@ from core.utils.api_response import success_response, error_response
 # Create your views here.
 
 
-class MeasurementView(APIView):
+class measurementView(APIView):
 
     """ 
         get - Retrieve all measurement types.
@@ -65,7 +65,32 @@ class MeasurementView(APIView):
     
 
 
-class ItemTypeView(APIView):
+class measurementDetailView(APIView):
+    """ 
+        get - Retrieve a measurement type by id.
+    """
+    def get(self, request, id):
+        try:
+            measurement = MeasurementType.objects.get(id=id)  
+            serializer =  MeasurementTypeSerializer(measurement)
+            return Response(
+                success_response(GeneralMessages.GET_SUCCESS_MESSAGE, ResponseCodes.RETRIEVE_SUCCESS, serializer.data)
+                , status=status.HTTP_200_OK)
+        
+        except MeasurementType.DoesNotExist:
+            return Response(
+                error_response(ErrorMessages.MEASUREMENT_DOES_NOT_EXIST, ResponseCodes.MEASUREMENT_DOES_NOT_EXIST, None, f"Measurement type with id {id} does not exist.")
+                , status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            return Response(
+                error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
+                , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    
+
+
+class itemTypeView(APIView):
     """ 
             get - Retrieve all item types.
             post - Create a new item type.

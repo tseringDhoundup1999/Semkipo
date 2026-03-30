@@ -1,20 +1,9 @@
 
-
-
-
-SERVER_ERROR_MESSAGE = "Something went wrong on the server. please try again later."
-VALIDATION_ERROR_MESSAGE = "Validation failed. Please check the input data and try again." 
-
-
-
-# customers response messages
-CUSTOMER_ALREADY_EXISTS_MESSAGE = "Customer already exists."
-CUSTOMER_CREATED_MESSAGE = "Customer has been created successfully."
-
 class GeneralMessages:
     # general messages
     SERVER_ERROR_MESSAGE = "Something went wrong on the server. please try again later."
     VALIDATION_ERROR_MESSAGE = "Validation failed. Please check the input data and try again."
+    DOES_NOT_EXIST_MESSAGE = "The requested resource does not exist."
     
     # Just Get API message
     GET_SUCCESS_MESSAGE = "Data retrieved successfully."
@@ -32,7 +21,8 @@ class SuccessMessages:
     # measurement success messages
     MEASUREMENT_TYPE_CREATED = "Measurement type has been created successfully."
     ITEM_TYPE_CREATED = "Measurement item type has been created successfully."
-    
+    MEASUREMENT_DELETED = "Measurement type deleted successfully."
+    MEASUREMENT_ITEM_TYPE_DELETED = "Measurement item type has been deleted successfully."
     
 
 class ErrorMessages:
@@ -46,3 +36,4 @@ class ErrorMessages:
     MEASUREMENT_ALREADY_EXISTS = "Measurement type with the same name already exists."
     ITEM_TYPE_ALREADY_EXISTS = "Item type with the same name already exists."
     MEASUREMENT_DOES_NOT_EXIST = "Measurement type with the provided id does not exist."
+    MEASUREMENT_ITEM_TYPE_DOES_NOT_EXIST = "Measurement item type with the provided id does not exist."

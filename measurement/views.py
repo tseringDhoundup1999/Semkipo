@@ -74,12 +74,14 @@ class measurementDetailView(APIView):
             measurement = MeasurementType.objects.get(id=id)  
             serializer =  MeasurementTypeSerializer(measurement)
             return Response(
-                success_response(GeneralMessages.GET_SUCCESS_MESSAGE, ResponseCodes.RETRIEVE_SUCCESS, serializer.data)
+                success_response(
+                    GeneralMessages.GET_SUCCESS_MESSAGE,
+                    ResponseCodes.RETRIEVE_SUCCESS, serializer.data)
                 , status=status.HTTP_200_OK)
         
         except MeasurementType.DoesNotExist:
             return Response(
-                error_response(ErrorMessages.MEASUREMENT_DOES_NOT_EXIST, ResponseCodes.MEASUREMENT_DOES_NOT_EXIST, None, f"Measurement type with id {id} does not exist.")
+                error_response(ErrorMessages.MEASUREMENT_DOES_NOT_EXIST, ResponseCodes.DOES_NOT_EXIST, None, f"Measurement type with id {id} does not exist.")
                 , status=status.HTTP_404_NOT_FOUND)
         
         except Exception as e:
@@ -87,6 +89,23 @@ class measurementDetailView(APIView):
                 error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
                 , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+    def delete(self, request, id):
+        try:
+            measurement = MeasurementType.objects.get(id=id)  
+            measurement.delete()
+            return Response(
+                success_response(SuccessMessages.MEASUREMENT_DELETED, ResponseCodes.DELETED,None)
+                , status=status.HTTP_200_OK)
+        
+        except MeasurementType.DoesNotExist:
+            return Response(
+                error_response(ErrorMessages.MEASUREMENT_DOES_NOT_EXIST, ResponseCodes.DOES_NOT_EXIST, None, f"Measurement type with id {id} does not exist.")
+                , status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            return Response(
+                error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
+                , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 
 
@@ -134,6 +153,62 @@ class itemTypeView(APIView):
             return Response(
                 error_response(GeneralMessages.VALIDATION_ERROR_MESSAGE, ResponseCodes.VALIDATION_ERROR, ve.detail, str(ve))
                 , status=status.HTTP_400_BAD_REQUEST)
+        
+        except Exception as e:
+            return Response(
+                error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
+                , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+
+
+class itemTypeDetailView(APIView):
+    """ 
+        get - Retrieve an item type by id.
+    """
+    def get(self, request, id):
+        try:
+            item = ItemType.objects.get(id=id)  
+            serializer =  ItemTypeSerializer(item)
+            return Response(
+                success_response(
+                    GeneralMessages.GET_SUCCESS_MESSAGE,
+                    ResponseCodes.RETRIEVE_SUCCESS, serializer.data)
+                , status=status.HTTP_200_OK)
+        
+        except ItemType.DoesNotExist:
+            return Response(
+                error_response(
+                    ErrorMessages.MEASUREMENT_ITEM_TYPE_DOES_NOT_EXIST, 
+                    ResponseCodes.DOES_NOT_EXIST,
+                    None,
+                    f"Item type with id {id} does not exist.")
+                , status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            return Response(
+                error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
+                , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def delete(self, request, id):
+        try:
+            item = ItemType.objects.get(id=id)  
+            item.delete()
+            return Response(
+                success_response(
+                    SuccessMessages.MEASUREMENT_ITEM_TYPE_DELETED,
+                    ResponseCodes.DELETED,
+                    None
+                )
+                , status=status.HTTP_200_OK)
+        
+        except ItemType.DoesNotExist:
+            return Response(
+                error_response(
+                    ErrorMessages.MEASUREMENT_DOES_NOT_EXIST,
+                    ResponseCodes.DOES_NOT_EXIST,
+                    None,
+                    f"Item type with id {id} does not exist.")
+                , status=status.HTTP_404_NOT_FOUND)
         
         except Exception as e:
             return Response(

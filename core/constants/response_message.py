@@ -24,6 +24,9 @@ class SuccessMessages:
     MEASUREMENT_DELETED = "Measurement type deleted successfully."
     MEASUREMENT_ITEM_TYPE_DELETED = "Measurement item type has been deleted successfully."
     
+    # order success messages
+    ORDER_CREATED_MESSAGE = "Your order has been successfully placed. Thank you!"
+    
 
 class ErrorMessages:
     # accounts error messages

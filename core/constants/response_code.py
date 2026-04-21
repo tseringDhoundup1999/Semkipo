@@ -6,6 +6,7 @@ class ResponseCodes:
     RETRIEVE_SUCCESS = "RETRIEVE_SUCCESS"
     DOES_NOT_EXIST = "DOES_NOT_EXIST"
     DELETED = "DELETED"
+    CUSTOMER_NOT_FOUND = "CUSTOMER_NOT_FOUND"
     
     # accounts response codes
     # customer response codes
@@ -23,4 +24,5 @@ class ResponseCodes:
     
     # order response codes 
     ORDER_CREATED = "ORDER_CREATED"
+    
     

@@ -7,6 +7,8 @@ class GeneralMessages:
     
     # Just Get API message
     GET_SUCCESS_MESSAGE = "Data retrieved successfully."
+    
+    CUSTOMER_NOT_FOUND = "The requested customer does not exist."
 
 class SuccessMessages:
     # accounts success messages
@@ -40,3 +42,7 @@ class ErrorMessages:
     ITEM_TYPE_ALREADY_EXISTS = "Item type with the same name already exists."
     MEASUREMENT_DOES_NOT_EXIST = "Measurement type with the provided id does not exist."
     MEASUREMENT_ITEM_TYPE_DOES_NOT_EXIST = "Measurement item type with the provided id does not exist."
+    
+    
+    # order 
+   

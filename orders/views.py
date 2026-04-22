@@ -34,7 +34,8 @@ class place_order_view(APIView):
                 
                 # handle customer not found 
                 try:
-                    customer_from_db = get_object_or_404(Customer,pk=customer['id'])                   
+                    customer_from_db = get_object_or_404(Customer,pk=customer['id'])  
+                                     
                 except Http404:
                     return Response(error_response(
                         GeneralMessages.CUSTOMER_NOT_FOUND,
@@ -45,9 +46,11 @@ class place_order_view(APIView):
                         # delivery type 
                     DELIVERY_TYPE_MAP = {
                         "PICKUP":Order.DeliveryChoice.PICKUP,
-                        "DELIVERY":Order.DeliveryChoice.PICKUP,
+                        "DELIVERY":Order.DeliveryChoice.DELIVERY,
                     }
+                    print(delivery.get('type'))
                     delivery_type = DELIVERY_TYPE_MAP.get(delivery.get('type'),Order.DeliveryChoice.PICKUP)
+                    print(delivery_type)
                     
                     # payment type  
                     # first set the payment_status to unpaid
@@ -66,10 +69,7 @@ class place_order_view(APIView):
                     
                     )
                     
-                    # 
-                   
-                    # get item type 
-                    
+                    # get item type  
                     total_itemOrder_price= 0
                     for item in items:
                         measurement_item = ItemType.objects.filter(id=item.get('item_id')).first()

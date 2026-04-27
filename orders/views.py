@@ -48,9 +48,7 @@ class place_order_view(APIView):
                         "PICKUP":Order.DeliveryChoice.PICKUP,
                         "DELIVERY":Order.DeliveryChoice.DELIVERY,
                     }
-                    print(delivery.get('type'))
                     delivery_type = DELIVERY_TYPE_MAP.get(delivery.get('type'),Order.DeliveryChoice.PICKUP)
-                    print(delivery_type)
                     
                     # payment type  
                     # first set the payment_status to unpaid
@@ -110,3 +108,29 @@ class place_order_view(APIView):
             return Response(
                 error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
                 , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+
+
+class Orders(APIView):
+    def get(self,request):
+        try:
+            orders = Order.objects.all()
+            order_data = OrderResponseSerializer(orders, many=True).data
+            return Response(
+                success_response(
+                    GeneralMessages.GET_SUCCESS_MESSAGE,
+                    ResponseCodes.RETRIEVE_SUCCESS,
+                    data={
+                        'orders':order_data
+                    }
+                   )
+                ,status=status.HTTP_200_OK
+                )
+            
+            
+        except Exception as e:
+            print(e)
+            return Response(
+                error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
+                , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        

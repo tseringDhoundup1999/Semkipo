@@ -47,18 +47,27 @@ class OrderItemResponseSerializer(serializers.ModelSerializer):
 class OrderResponseSerializer(serializers.ModelSerializer):
     customer = CustomerResponseSerializer(read_only=True)
     items = OrderItemResponseSerializer(many=True,read_only=True)
+    payment_status = serializers.SerializerMethodField()
+
+    def get_payment_status(self, obj):
+        return {
+            "value": obj.payment_status,
+            "label": obj.get_payment_status_display()
+        }
     class Meta:
         model = Order
         fields = [
             "id",
             "customer",
+            "status",
             "delivery_type",
             "delivery_address",
             "delivery_charge",
             "payment_status",
             "discount",
             "total_price",
-            "items"
+            "items",
+            'created_at',
         ]
     
     

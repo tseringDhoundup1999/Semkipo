@@ -114,7 +114,33 @@ class place_order_view(APIView):
 class Orders(APIView):
     def get(self,request):
         try:
+            query = request.GET
+            # order_status = request.GET.get('status','all')
+            status_key = request.GET.get('status')
+            search = request.GET.get('search','')
+            sort = request.GET.get('sort','')
+            date_from = request.GET.get('date_from','')
+            date_to = request.GET.get('date_to','')
+            
+
+            # order status mapping 
+            ORDER_STATUS_MAPPING = {
+                'in_progress':Order.StatusChoice.IN_PROGRESS,
+                'pending':Order.StatusChoice.PENDING,
+                'completed':Order.StatusChoice.COMPLETED,
+                'cancelled':Order.StatusChoice.CANCELLED
+                
+            }
+            
+            order_status = ORDER_STATUS_MAPPING.get(status_key)
+            print('order_status',order_status)
+            
             orders = Order.objects.all()
+            if order_status is not None:
+                print(order_status)
+                orders = orders.filter(status =order_status)    
+            
+            
             order_data = OrderResponseSerializer(orders, many=True).data
             return Response(
                 success_response(

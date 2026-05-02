@@ -24,6 +24,7 @@ import time
 from django.utils import timezone
 from datetime import timedelta
 from django.utils.dateparse import parse_datetime
+from django.core.paginator import Paginator
 
 
 
@@ -123,6 +124,8 @@ class Orders(APIView):
     YEAR_STRING= "this_year"
     TODAY_STRING = "today"
     
+    OBJECT_LIMIT = 5
+    
     
     def clean_data(self,value):
         if value is None:
@@ -191,6 +194,7 @@ class Orders(APIView):
             date_from =self.clean_data( request.GET.get('date_from'))
             date_to = self.clean_data(request.GET.get('date_to'))
             quick_date = self.clean_data(request.GET.get('quick_date'))
+            page_num = self.clean_data(request.GET.get('page'))
             
             
             # -------------- MAPPING --------------------------
@@ -268,14 +272,26 @@ class Orders(APIView):
                     start = end = None
                 if start and end:
                     orders = orders.filter(created_at__gte=start, created_at__lt=end)
+
+            # ------------ PAGINATION ----------------------------
+            paginator = Paginator(orders,self.OBJECT_LIMIT)
+            try:
+                page_num = int(page_num)
+            except (TypeError, ValueError):
+                page_num = 1
+            page_obj = paginator.get_page(page_num or 1)
             
-            # ----------- SERIALIZE -----------     
-            order_data = OrderResponseSerializer(orders, many=True).data
+            # ----------- SERIALIZE ------------------------------     
+            order_data = OrderResponseSerializer(page_obj, many=True).data
             return Response(
                 success_response(
                     GeneralMessages.GET_SUCCESS_MESSAGE,
                     ResponseCodes.RETRIEVE_SUCCESS,
+                  
                     data={
+                        "count": paginator.count,
+                        "total_pages": paginator.num_pages,
+                        "current_page": page_obj.number,
                         'orders':order_data
                     }
                    )

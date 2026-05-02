@@ -112,17 +112,29 @@ class place_order_view(APIView):
 
 
 class Orders(APIView):
+    
+    def clean_data(self,value):
+        if value is None:
+            return None
+
+        value = str(value).strip()
+
+        if value.lower() in ['undefined', 'null', '']:
+            return None
+
+        return value
+        
     def get(self,request):
         try:
             query = request.GET
             # order_status = request.GET.get('status','all')
-            status_key = request.GET.get('status')
-            search = request.GET.get('search','')
-            sort = request.GET.get('sort','')
-            date_from = request.GET.get('date_from','')
-            date_to = request.GET.get('date_to','')
+            status_key = self.clean_data(request.GET.get('status'))
+            payment_key = self.clean_data(request.GET.get('payment_status'))
+            search = self.clean_data(request.GET.get('search'))
+            sort = self.clean_data(request.GET.get('sort'))
+            date_from =self.clean_data( request.GET.get('date_from'))
+            date_to = self.clean_data(request.GET.get('date_to'))
             
-
             # order status mapping 
             ORDER_STATUS_MAPPING = {
                 'in_progress':Order.StatusChoice.IN_PROGRESS,
@@ -131,14 +143,45 @@ class Orders(APIView):
                 'cancelled':Order.StatusChoice.CANCELLED
                 
             }
+            PAYMENT_STATUS_MAPPING = {
+                'paid':Order.PaymentChoice.PAID,
+                'unpaid':Order.PaymentChoice.UNPAID
+            }
             
             order_status = ORDER_STATUS_MAPPING.get(status_key)
-            print('order_status',order_status)
-            
+            payment_status = PAYMENT_STATUS_MAPPING.get(payment_key)
+            print(payment_status)
+
             orders = Order.objects.all()
             if order_status is not None:
                 print(order_status)
-                orders = orders.filter(status =order_status)    
+                orders = orders.filter(status =order_status) 
+            
+            if date_from:
+                orders = orders.filter(created_at__gte=date_from)
+            
+            if date_to:
+                orders = orders.filter(created_at__lte=date_to)
+
+            
+            # sort 
+            if sort:
+                if sort =='date-desc':
+                    orders = orders.order_by('-created_at')
+                elif sort == 'date-asc':
+                    orders = orders.order_by('created_at')
+                elif sort == "amount-asc":
+                    orders = orders.order_by('total_price')
+                elif sort == "amount-desc":
+                    orders = orders.order_by('-total_price')
+
+            # sort by payment type 
+            if payment_status:
+                orders = orders.filter(payment_status=payment_status)
+                    
+            
+           
+               
             
             
             order_data = OrderResponseSerializer(orders, many=True).data

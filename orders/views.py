@@ -20,6 +20,12 @@ from core.constants.response_message import GeneralMessages,SuccessMessages,Erro
 
 from django.db import transaction
 
+import time 
+from django.utils import timezone
+from datetime import timedelta
+from django.utils.dateparse import parse_datetime
+
+
 
 class place_order_view(APIView):
     
@@ -112,6 +118,11 @@ class place_order_view(APIView):
 
 
 class Orders(APIView):
+    WEEK_STRING = "this_week"
+    MONTH_STRING = "this_month"
+    YEAR_STRING= "this_year"
+    TODAY_STRING = "today"
+    
     
     def clean_data(self,value):
         if value is None:
@@ -123,19 +134,66 @@ class Orders(APIView):
             return None
 
         return value
+    
+    def get_today_range(self):
+        now = timezone.now()
+        today_date = now.replace(hour=0,minute=0,second=0,microsecond=0)
+        today_end_date =today_date + timedelta(days=1)
+        return  today_date,today_end_date
+    
+    def get_this_month_range(self):
+        now = timezone.now()
+        start_month = now.replace(day=1,hour=0,minute=0,second=0,microsecond=0)
+        if now.month == 12:
+            end_month = start_month.replace(year=start_month.year+1,month=1)
+        else:
+            end_month = start_month.replace(month=now.month+1)
+        return start_month,end_month
+    
+    def get_this_week_range(self):
+        now = timezone.now()
+
+        # Start of today (00:00)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Python: Monday=0 ... Sunday=6
+        # Convert so Sunday becomes 0
+        days_since_sunday = (today_start.weekday() + 1) % 7
+
+        # Start of week (Sunday)
+        start_of_week = today_start - timedelta(days=days_since_sunday)
+
+        # End of week (next Sunday)
+        end_of_week = start_of_week + timedelta(days=7)
+
+        return start_of_week, end_of_week
+    
+    def get_this_year_range(self):
+        now = timezone.now()
+        
+        start_year = now.replace(month=1,day=1,hour=0,minute=0,second=0,microsecond=0)
+        end_year = start_year.replace(year=now.year+1)
+        
+        return start_year,end_year
+        
+        
+        
         
     def get(self,request):
+        # time.sleep(1)
         try:
-            query = request.GET
-            # order_status = request.GET.get('status','all')
+            # --------------- CLEAN INPUT ------------------
             status_key = self.clean_data(request.GET.get('status'))
             payment_key = self.clean_data(request.GET.get('payment_status'))
             search = self.clean_data(request.GET.get('search'))
             sort = self.clean_data(request.GET.get('sort'))
+            from django.utils.dateparse import parse_datetime
             date_from =self.clean_data( request.GET.get('date_from'))
             date_to = self.clean_data(request.GET.get('date_to'))
+            quick_date = self.clean_data(request.GET.get('quick_date'))
             
-            # order status mapping 
+            
+            # -------------- MAPPING --------------------------
             ORDER_STATUS_MAPPING = {
                 'in_progress':Order.StatusChoice.IN_PROGRESS,
                 'pending':Order.StatusChoice.PENDING,
@@ -147,43 +205,71 @@ class Orders(APIView):
                 'paid':Order.PaymentChoice.PAID,
                 'unpaid':Order.PaymentChoice.UNPAID
             }
+            SORT_MAPPING = {
+                'date-desc': '-created_at',
+                'date-asc': 'created_at',
+                'amount-asc': 'total_price',
+                'amount-desc': '-total_price',
+            }
             
-            order_status = ORDER_STATUS_MAPPING.get(status_key)
-            payment_status = PAYMENT_STATUS_MAPPING.get(payment_key)
-            print(payment_status)
-
+            
+            
+            # ----------- BASE QUERY ------------------
             orders = Order.objects.all()
+            
+            
+            # --------- SEARCH FILTER ---------------------------
+            if search:
+                orders = orders.filter(customer__name__icontains=search) 
+                
+                
+                
+            # --------- STATUS FILTER -------------------------------
+            order_status = ORDER_STATUS_MAPPING.get(status_key)
             if order_status is not None:
-                print(order_status)
                 orders = orders.filter(status =order_status) 
             
+            payment_status = PAYMENT_STATUS_MAPPING.get(payment_key)
+            if payment_status is not None:
+                orders = orders.filter(payment_status=payment_status)
+            
+            #------------ DATE RANGE FILTER -------------------------
             if date_from:
+                date_from = parse_datetime(date_from)
                 orders = orders.filter(created_at__gte=date_from)
             
             if date_to:
+                date_to = parse_datetime(date_to)
                 orders = orders.filter(created_at__lte=date_to)
+            
+            
+            # ----------- SORTING -----------
+            if sort in SORT_MAPPING:
+                orders = orders.order_by(SORT_MAPPING[sort])
+            else:
+                orders = orders.order_by('-created_at')  # default
 
             
-            # sort 
-            if sort:
-                if sort =='date-desc':
-                    orders = orders.order_by('-created_at')
-                elif sort == 'date-asc':
-                    orders = orders.order_by('created_at')
-                elif sort == "amount-asc":
-                    orders = orders.order_by('total_price')
-                elif sort == "amount-desc":
-                    orders = orders.order_by('-total_price')
+            # ----------- QUICK DATE FILTER -----------
+            if quick_date:
+                if quick_date == self.TODAY_STRING:
+                    start, end = self.get_today_range()
 
-            # sort by payment type 
-            if payment_status:
-                orders = orders.filter(payment_status=payment_status)
-                    
+                elif quick_date == self.WEEK_STRING:
+                    start, end = self.get_this_week_range()
+
+                elif quick_date == self.MONTH_STRING:
+                    start, end = self.get_this_month_range()
+
+                elif quick_date == self.YEAR_STRING:
+                    start, end = self.get_this_year_range()
+
+                else:
+                    start = end = None
+                if start and end:
+                    orders = orders.filter(created_at__gte=start, created_at__lt=end)
             
-           
-               
-            
-            
+            # ----------- SERIALIZE -----------     
             order_data = OrderResponseSerializer(orders, many=True).data
             return Response(
                 success_response(

@@ -5,10 +5,13 @@ class GeneralMessages:
     VALIDATION_ERROR_MESSAGE = "Validation failed. Please check the input data and try again."
     DOES_NOT_EXIST_MESSAGE = "The requested resource does not exist."
     
+    
     # Just Get API message
     GET_SUCCESS_MESSAGE = "Data retrieved successfully."
     
     CUSTOMER_NOT_FOUND = "The requested customer does not exist."
+    
+    
 
 class SuccessMessages:
     # accounts success messages
@@ -28,6 +31,8 @@ class SuccessMessages:
     
     # order success messages
     ORDER_CREATED_MESSAGE = "Your order has been successfully placed. Thank you!"
+    DELETE_ORDER = "Your order has been deleted successfully."
+    
     
 
 class ErrorMessages:

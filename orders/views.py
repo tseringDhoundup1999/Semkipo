@@ -28,7 +28,7 @@ from django.core.paginator import Paginator
 
 
 
-class place_order_view(APIView):
+class Create_order(APIView):
     
     def post(self,request):
         try:
@@ -124,7 +124,7 @@ class Orders(APIView):
     YEAR_STRING= "this_year"
     TODAY_STRING = "today"
     
-    OBJECT_LIMIT = 5
+    OBJECT_LIMIT = 10
     
     
     def clean_data(self,value):
@@ -183,7 +183,7 @@ class Orders(APIView):
         
         
     def get(self,request):
-        # time.sleep(1)
+        time.sleep(1)
         try:
             # --------------- CLEAN INPUT ------------------
             status_key = self.clean_data(request.GET.get('status'))
@@ -304,4 +304,36 @@ class Orders(APIView):
             return Response(
                 error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
                 , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+
+
+
+class Delete_order(APIView):
+    def delete(self,request,id):
+        try:
+            order = get_object_or_404(Order,pk=id)
+            order.delete()
+            return Response(
+                success_response(
+                    SuccessMessages.DELETE_ORDER,
+                    ResponseCodes.DELETED,      
+                   )
+                ,status=status.HTTP_204_NO_CONTENT
+                )
+        except Order.DoesNotExist:
+            return Response(
+                error_response(
+                    GeneralMessages.DOES_NOT_EXIST_MESSAGE,
+                    ResponseCodes.DOES_NOT_EXIST,      
+                   )
+                ,status=status.HTTP_404_NOT_FOUND
+                )
+            
+        except Exception as e:
+            print(e)
+            return Response(
+                error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
+                , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
         

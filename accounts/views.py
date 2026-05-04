@@ -38,7 +38,7 @@ class RegisterView(APIView):
 
             return Response({
                 "success": True,
-                "message":"User created successfully",
+                "message":"Registration successful. Your account is under review and will be verified soon.",
                 "code":"REGISTER_SUCCESS",
                 "data": {
                     "access_token":access_token,
@@ -47,6 +47,7 @@ class RegisterView(APIView):
                         "id": user.id,
                         "username": user.username,
                         "email": user.email,
+                        "is_verified": user.is_verified,
                     },
                 },
                 },status=status.HTTP_201_CREATED)
@@ -87,6 +88,17 @@ class LoginView(APIView):
                             "code":"INVALID_CREDENTIALS"
                         },
                         status=status.HTTP_401_UNAUTHORIZED)
+                
+                # Allow login only after admin/superuser verifies the account.
+                if not user.is_verified:
+                    return Response(
+                        {
+                            "success": False,
+                            "message": "Your account is under review. Please wait for admin approval before logging in.",
+                            "code": "ACCOUNT_NOT_VERIFIED",
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
                 
                 
                 # ------------------------------

@@ -11,7 +11,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         }
 
     def create(self,validated_data):
-        user = User.objects.create_user(**validated_data)
+        # New users must always start unverified; admins can verify later.
+        user = User.objects.create_user(**validated_data, is_verified=False)
         return user
 
 

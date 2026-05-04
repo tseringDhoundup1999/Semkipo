@@ -8,7 +8,7 @@ from customers.models import Customer
 from .models import Order,OrderItem
 from measurement.models import ItemType
 # serializer 
-from .serializers import OrderSerializer,OrderResponseSerializer
+from .serializers import OrderSerializer,OrderResponseSerializer,OrderUpdateSerializer
 # Create your views here.
 from decimal import Decimal
 from django.http import Http404
@@ -329,6 +329,65 @@ class Orders(APIView):
                 , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         
+
+
+
+class Update_order(APIView):
+    PAYMENT_STATUS_ALIASES = {
+        "paid": Order.PaymentChoice.PAID,
+        "unpaid": Order.PaymentChoice.UNPAID,
+    }
+
+    def patch(self,request,id):
+        try:
+            order = get_object_or_404(Order,pk=id)
+            data = request.data.copy()
+            payment_status = data.get("payment_status")
+
+            if payment_status in self.PAYMENT_STATUS_ALIASES:
+                data["payment_status"] = self.PAYMENT_STATUS_ALIASES[payment_status]
+
+            serializer = OrderUpdateSerializer(data=data)
+            if not serializer.is_valid():
+                return Response(
+                    error_response(
+                        GeneralMessages.VALIDATION_ERROR_MESSAGE,
+                        ResponseCodes.VALIDATION_ERROR,
+                        serializer.errors,
+                    )
+                    ,status=status.HTTP_400_BAD_REQUEST
+                )
+
+            updated_fields = []
+            for field,value in serializer.validated_data.items():
+                setattr(order,field,value)
+                updated_fields.append(field)
+
+            order.save(update_fields=[*updated_fields,"updated_at"])
+            order_data = OrderResponseSerializer(order).data
+
+            return Response(
+                success_response(
+                    "Order has been updated successfully.",
+                    "ORDER_UPDATED",
+                    data={
+                        "order":order_data,
+                    })
+                ,status=status.HTTP_200_OK
+            )
+        except Http404:
+            return Response(
+                error_response(
+                    GeneralMessages.DOES_NOT_EXIST_MESSAGE,
+                    ResponseCodes.DOES_NOT_EXIST,
+                )
+                ,status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(e)
+            return Response(
+                error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
+                , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 

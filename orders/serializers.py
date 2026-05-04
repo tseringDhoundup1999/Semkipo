@@ -24,6 +24,21 @@ class OrderSerializer(serializers.Serializer):
     payment = serializers.BooleanField()
 
 
+class OrderUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=Order.StatusChoice.choices, required=False)
+    payment_status = serializers.ChoiceField(
+        choices=Order.PaymentChoice.choices, required=False
+    )
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError(
+                "Provide status or payment_status to update."
+            )
+
+        return attrs
+
+
 # response serializers 
 
 class CustomerResponseSerializer(serializers.ModelSerializer):

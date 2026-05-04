@@ -25,7 +25,7 @@ from core.constants.response_message import GeneralMessages,SuccessMessages,Erro
 
 from django.db import transaction
 from django.db.models import Count, DecimalField, Max, Sum, Value
-from django.db.models.functions import Coalesce, TruncDate
+from django.db.models.functions import Coalesce, TruncDate, TruncHour, TruncMonth
 
 import time 
 from django.utils import timezone
@@ -264,6 +264,7 @@ class Orders(APIView):
     def get_status_counts(self, orders):
         counts = {
             'all': orders.count(),
+            'active': 0,
             Order.StatusChoice.PENDING: 0,
             Order.StatusChoice.IN_PROGRESS: 0,
             Order.StatusChoice.COMPLETED: 0,
@@ -277,6 +278,11 @@ class Orders(APIView):
         )
         for status_total in status_totals:
             counts[status_total['status']] = status_total['total']
+
+        counts['active'] = (
+            counts.get(Order.StatusChoice.PENDING, 0)
+            + counts.get(Order.StatusChoice.IN_PROGRESS, 0)
+        )
 
         return counts
     
@@ -341,6 +347,7 @@ class Orders(APIView):
             
             # -------------- MAPPING --------------------------
             ORDER_STATUS_MAPPING = {
+                'active': 'active',
                 'in_progress':Order.StatusChoice.IN_PROGRESS,
                 'pending':Order.StatusChoice.PENDING,
                 'completed':Order.StatusChoice.COMPLETED,
@@ -414,7 +421,14 @@ class Orders(APIView):
 
             # --------- STATUS FILTER -------------------------------
             order_status = ORDER_STATUS_MAPPING.get(status_key)
-            if order_status is not None:
+            if order_status == "active":
+                orders = orders.filter(
+                    status__in=[
+                        Order.StatusChoice.PENDING,
+                        Order.StatusChoice.IN_PROGRESS,
+                    ]
+                )
+            elif order_status is not None:
                 orders = orders.filter(status =order_status) 
 
             # ------------ PAGINATION ----------------------------
@@ -467,6 +481,7 @@ class Dashboard(APIView):
     def get_status_counts(self, orders):
         counts = {
             "all": orders.count(),
+            "active": 0,
             Order.StatusChoice.PENDING: 0,
             Order.StatusChoice.IN_PROGRESS: 0,
             Order.StatusChoice.COMPLETED: 0,
@@ -476,7 +491,29 @@ class Dashboard(APIView):
         for row in orders.order_by().values("status").annotate(total=Count("id")):
             counts[row["status"]] = row["total"]
 
+        counts["active"] = (
+            counts.get(Order.StatusChoice.PENDING, 0)
+            + counts.get(Order.StatusChoice.IN_PROGRESS, 0)
+        )
+
         return counts
+
+    def next_month_start(self, date_time):
+        month = date_time.month + 1
+        year = date_time.year
+        if month > 12:
+            month = 1
+            year += 1
+
+        return date_time.replace(
+            year=year,
+            month=month,
+            day=1,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
 
     def get_choice_counts(self, orders, field, choices):
         counts = {choice.value: 0 for choice in choices}
@@ -614,6 +651,109 @@ class Dashboard(APIView):
                     }
                 )
 
+            # Sales trend buckets for chart range filters
+            month_end = self.next_month_start(month_start)
+            year_start = today_start.replace(month=1, day=1)
+            year_end = year_start.replace(year=year_start.year + 1)
+
+            today_trend_rows = (
+                orders.filter(created_at__gte=today_start, created_at__lt=tomorrow_start)
+                .annotate(bucket=TruncHour("created_at"))
+                .values("bucket")
+                .annotate(
+                    order_count=Count("id"),
+                    revenue=Coalesce(
+                        Sum("total_price"),
+                        Value(Decimal("0.00")),
+                        output_field=money_field,
+                    ),
+                )
+                .order_by("bucket")
+            )
+            today_trend_map = {
+                row["bucket"].hour: row for row in today_trend_rows if row.get("bucket")
+            }
+            sales_trend_today = []
+            for hour in range(24):
+                hour_bucket = today_start + timedelta(hours=hour)
+                row = today_trend_map.get(hour, {})
+                sales_trend_today.append(
+                    {
+                        "date": hour_bucket.isoformat(),
+                        "label": hour_bucket.strftime("%H:%M"),
+                        "order_count": row.get("order_count", 0),
+                        "revenue": self.format_money(row.get("revenue")),
+                    }
+                )
+
+            month_trend_rows = (
+                orders.filter(created_at__gte=month_start, created_at__lt=month_end)
+                .annotate(bucket=TruncDate("created_at"))
+                .values("bucket")
+                .annotate(
+                    order_count=Count("id"),
+                    revenue=Coalesce(
+                        Sum("total_price"),
+                        Value(Decimal("0.00")),
+                        output_field=money_field,
+                    ),
+                )
+                .order_by("bucket")
+            )
+            month_trend_map = {
+                row["bucket"]: row for row in month_trend_rows if row.get("bucket")
+            }
+            sales_trend_month = []
+            month_cursor = month_start.date()
+            month_end_date = month_end.date()
+            while month_cursor < month_end_date:
+                row = month_trend_map.get(month_cursor, {})
+                sales_trend_month.append(
+                    {
+                        "date": month_cursor.isoformat(),
+                        "label": month_cursor.strftime("%d"),
+                        "order_count": row.get("order_count", 0),
+                        "revenue": self.format_money(row.get("revenue")),
+                    }
+                )
+                month_cursor = month_cursor + timedelta(days=1)
+
+            year_trend_rows = (
+                orders.filter(created_at__gte=year_start, created_at__lt=year_end)
+                .annotate(bucket=TruncMonth("created_at"))
+                .values("bucket")
+                .annotate(
+                    order_count=Count("id"),
+                    revenue=Coalesce(
+                        Sum("total_price"),
+                        Value(Decimal("0.00")),
+                        output_field=money_field,
+                    ),
+                )
+                .order_by("bucket")
+            )
+            year_trend_map = {
+                (row["bucket"].year, row["bucket"].month): row
+                for row in year_trend_rows
+                if row.get("bucket")
+            }
+            sales_trend_year = []
+            month_cursor_dt = year_start
+            while month_cursor_dt < year_end:
+                map_key = (month_cursor_dt.year, month_cursor_dt.month)
+                row = year_trend_map.get(map_key, {})
+                sales_trend_year.append(
+                    {
+                        "date": month_cursor_dt.date().isoformat(),
+                        "label": month_cursor_dt.strftime("%b"),
+                        "order_count": row.get("order_count", 0),
+                        "revenue": self.format_money(row.get("revenue")),
+                    }
+                )
+                month_cursor_dt = self.next_month_start(month_cursor_dt)
+
+            sales_trend_week = revenue_trend
+
             top_customers = []
             customer_rows = (
                 orders.filter(customer__isnull=False)
@@ -726,6 +866,12 @@ class Dashboard(APIView):
                 "top_customers": top_customers,
                 "fast_selling_services": fast_selling_services,
                 "revenue_trend": revenue_trend,
+                "sales_trends": {
+                    "today": sales_trend_today,
+                    "week": sales_trend_week,
+                    "month": sales_trend_month,
+                    "year": sales_trend_year,
+                },
                 "recent_orders": recent_orders,
             }
 

@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.validators import ValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from .models import ItemType, MeasurementType
 from .serializers import ItemTypeSerializer, MeasurementTypeSerializer
@@ -146,24 +146,26 @@ class itemTypeView(APIView):
     def post(self,request):
         try:
             serializer = ItemTypeSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            name = serializer.validated_data.get('name')
-            measurement_type = serializer.validated_data.get('measurement_type')
-            price_per_unit = serializer.validated_data.get('price_per_unit')
-            
-            image = request.FILES.get('image')
-            
-            ItemType.objects.create(
-                name=name,
-                measurement_type=measurement_type,
-                price_per_unit=price_per_unit,
-                image=image
-            )
+            if not serializer.is_valid():
+                return Response(
+                    error_response(
+                        GeneralMessages.VALIDATION_ERROR_MESSAGE,
+                        ResponseCodes.VALIDATION_ERROR,
+                        serializer.errors,
+                    ),
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            item = serializer.save()
             
             return Response(
-                    success_response(SuccessMessages.ITEM_TYPE_CREATED, ResponseCodes.MEASUREMENT_ITEM_TYPE_CREATED, serializer.data)
+                    success_response(
+                        SuccessMessages.ITEM_TYPE_CREATED,
+                        ResponseCodes.MEASUREMENT_ITEM_TYPE_CREATED,
+                        ItemTypeSerializer(item).data,
+                    )
                     , status=status.HTTP_201_CREATED)
-        except ValidationError as ve:
+        except DRFValidationError as ve:
             return Response(
                 error_response(GeneralMessages.VALIDATION_ERROR_MESSAGE, ResponseCodes.VALIDATION_ERROR, ve.detail, str(ve))
                 , status=status.HTTP_400_BAD_REQUEST)

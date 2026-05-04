@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from customers.models import Customer
-from .models import Order,OrderItem
+from .models import Order,OrderItem,PromotionRule
 from measurement.models import ItemType
 from decimal import Decimal, InvalidOperation
 
@@ -121,6 +121,17 @@ class OrderResponseSerializer(serializers.ModelSerializer):
             "items",
             'created_at',
         ]
+
+
+class PromotionRuleSerializer(serializers.ModelSerializer):
+    is_currently_applicable = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PromotionRule
+        fields = "__all__"
+
+    def get_is_currently_applicable(self, obj):
+        return obj.is_currently_applicable()
     
     
     

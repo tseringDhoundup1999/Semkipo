@@ -5,9 +5,14 @@ from rest_framework import status
 
 # models
 from customers.models import Customer
-from .models import Order,OrderItem
+from .models import Order,OrderItem,PromotionRule
 # serializer 
-from .serializers import OrderSerializer,OrderResponseSerializer,OrderUpdateSerializer
+from .serializers import (
+    OrderSerializer,
+    OrderResponseSerializer,
+    OrderUpdateSerializer,
+    PromotionRuleSerializer,
+)
 # Create your views here.
 from decimal import Decimal
 from django.http import Http404
@@ -733,3 +738,135 @@ class Delete_order(APIView):
                 , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         
+
+class PromotionRules(APIView):
+    def get(self, request):
+        try:
+            rules = PromotionRule.objects.all()
+            serializer = PromotionRuleSerializer(rules, many=True)
+            return Response(
+                success_response(
+                    GeneralMessages.GET_SUCCESS_MESSAGE,
+                    ResponseCodes.RETRIEVE_SUCCESS,
+                    serializer.data,
+                ),
+                status=status.HTTP_200_OK,
+            )
+        except Exception as err:
+            return Response(
+                error_response(
+                    GeneralMessages.SERVER_ERROR_MESSAGE,
+                    ResponseCodes.SERVER_ERROR,
+                    None,
+                    str(err),
+                ),
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def post(self, request):
+        try:
+            serializer = PromotionRuleSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    error_response(
+                        GeneralMessages.VALIDATION_ERROR_MESSAGE,
+                        ResponseCodes.VALIDATION_ERROR,
+                        serializer.errors,
+                    ),
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            rule = serializer.save()
+            return Response(
+                success_response(
+                    "Promotion rule created successfully.",
+                    "PROMOTION_RULE_CREATED",
+                    PromotionRuleSerializer(rule).data,
+                ),
+                status=status.HTTP_201_CREATED,
+            )
+        except Exception as err:
+            return Response(
+                error_response(
+                    GeneralMessages.SERVER_ERROR_MESSAGE,
+                    ResponseCodes.SERVER_ERROR,
+                    None,
+                    str(err),
+                ),
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class PromotionRuleDetail(APIView):
+    def patch(self, request, id):
+        try:
+            rule = get_object_or_404(PromotionRule, pk=id)
+            serializer = PromotionRuleSerializer(rule, data=request.data, partial=True)
+            if not serializer.is_valid():
+                return Response(
+                    error_response(
+                        GeneralMessages.VALIDATION_ERROR_MESSAGE,
+                        ResponseCodes.VALIDATION_ERROR,
+                        serializer.errors,
+                    ),
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            serializer.save()
+            return Response(
+                success_response(
+                    "Promotion rule updated successfully.",
+                    "PROMOTION_RULE_UPDATED",
+                    serializer.data,
+                ),
+                status=status.HTTP_200_OK,
+            )
+        except Http404:
+            return Response(
+                error_response(
+                    GeneralMessages.DOES_NOT_EXIST_MESSAGE,
+                    ResponseCodes.DOES_NOT_EXIST,
+                ),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as err:
+            return Response(
+                error_response(
+                    GeneralMessages.SERVER_ERROR_MESSAGE,
+                    ResponseCodes.SERVER_ERROR,
+                    None,
+                    str(err),
+                ),
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request, id):
+        try:
+            rule = get_object_or_404(PromotionRule, pk=id)
+            rule.delete()
+            return Response(
+                success_response(
+                    "Promotion rule deleted successfully.",
+                    ResponseCodes.DELETED,
+                    None,
+                ),
+                status=status.HTTP_200_OK,
+            )
+        except Http404:
+            return Response(
+                error_response(
+                    GeneralMessages.DOES_NOT_EXIST_MESSAGE,
+                    ResponseCodes.DOES_NOT_EXIST,
+                ),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as err:
+            return Response(
+                error_response(
+                    GeneralMessages.SERVER_ERROR_MESSAGE,
+                    ResponseCodes.SERVER_ERROR,
+                    None,
+                    str(err),
+                ),
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

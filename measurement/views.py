@@ -9,6 +9,7 @@ from rest_framework.validators import ValidationError
 
 from .models import ItemType, MeasurementType
 from .serializers import ItemTypeSerializer, MeasurementTypeSerializer
+from orders.models import OrderItem
 
 # utils 
 from core.constants.response_code import ResponseCodes 
@@ -92,6 +93,19 @@ class measurementDetailView(APIView):
     def delete(self, request, id):
         try:
             measurement = MeasurementType.objects.get(id=id)  
+            if ItemType.objects.filter(measurement_type=measurement).exists():
+                return Response(
+                    error_response(
+                        "This measurement unit is used by service items and cannot be deleted.",
+                        ResponseCodes.VALIDATION_ERROR,
+                        {
+                            "measurement": [
+                                "Delete or move related service items before deleting this unit."
+                            ]
+                        },
+                    )
+                    , status=status.HTTP_409_CONFLICT)
+
             measurement.delete()
             return Response(
                 success_response(SuccessMessages.MEASUREMENT_DELETED, ResponseCodes.DELETED,None)
@@ -192,6 +206,19 @@ class itemTypeDetailView(APIView):
     def delete(self, request, id):
         try:
             item = ItemType.objects.get(id=id)  
+            if OrderItem.objects.filter(measurement_type=item).exists():
+                return Response(
+                    error_response(
+                        "This service item is used in existing orders and cannot be deleted.",
+                        ResponseCodes.VALIDATION_ERROR,
+                        {
+                            "item": [
+                                "Keeping it protects the service details on old orders."
+                            ]
+                        },
+                    )
+                    , status=status.HTTP_409_CONFLICT)
+
             item.delete()
             return Response(
                 success_response(

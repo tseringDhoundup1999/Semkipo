@@ -19,6 +19,7 @@ from core.constants.response_code import ResponseCodes
 from core.constants.response_message import GeneralMessages,SuccessMessages,ErrorMessages
 
 from django.db import transaction
+from django.db.models import Count
 
 import time 
 from django.utils import timezone
@@ -137,6 +138,25 @@ class Orders(APIView):
             return None
 
         return value
+
+    def get_status_counts(self, orders):
+        counts = {
+            'all': orders.count(),
+            Order.StatusChoice.PENDING: 0,
+            Order.StatusChoice.IN_PROGRESS: 0,
+            Order.StatusChoice.COMPLETED: 0,
+            Order.StatusChoice.CANCELLED: 0,
+        }
+
+        status_totals = (
+            orders.order_by()
+            .values('status')
+            .annotate(total=Count('id'))
+        )
+        for status_total in status_totals:
+            counts[status_total['status']] = status_total['total']
+
+        return counts
     
     def get_today_range(self):
         now = timezone.now()
@@ -228,11 +248,6 @@ class Orders(APIView):
                 
                 
                 
-            # --------- STATUS FILTER -------------------------------
-            order_status = ORDER_STATUS_MAPPING.get(status_key)
-            if order_status is not None:
-                orders = orders.filter(status =order_status) 
-            
             payment_status = PAYMENT_STATUS_MAPPING.get(payment_key)
             if payment_status is not None:
                 orders = orders.filter(payment_status=payment_status)
@@ -273,6 +288,13 @@ class Orders(APIView):
                 if start and end:
                     orders = orders.filter(created_at__gte=start, created_at__lt=end)
 
+            status_counts = self.get_status_counts(orders)
+
+            # --------- STATUS FILTER -------------------------------
+            order_status = ORDER_STATUS_MAPPING.get(status_key)
+            if order_status is not None:
+                orders = orders.filter(status =order_status) 
+
             # ------------ PAGINATION ----------------------------
             paginator = Paginator(orders,self.OBJECT_LIMIT)
             try:
@@ -290,6 +312,7 @@ class Orders(APIView):
                   
                     data={
                         "count": paginator.count,
+                        "status_counts": status_counts,
                         "total_pages": paginator.num_pages,
                         "current_page": page_obj.number,
                         'orders':order_data
@@ -311,6 +334,7 @@ class Orders(APIView):
 
 class Delete_order(APIView):
     def delete(self,request,id):
+        time.sleep(1)
         try:
             order = get_object_or_404(Order,pk=id)
             order.delete()

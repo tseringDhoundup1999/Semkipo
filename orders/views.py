@@ -6,12 +6,12 @@ from rest_framework import status
 # models
 from customers.models import Customer
 from .models import Order,OrderItem
-from measurement.models import ItemType
 # serializer 
 from .serializers import OrderSerializer,OrderResponseSerializer,OrderUpdateSerializer
 # Create your views here.
 from decimal import Decimal
 from django.http import Http404
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 # messages
 from core.utils.api_response import error_response,success_response
@@ -35,72 +35,79 @@ class Create_order(APIView):
     def post(self,request):
         try:
             serializer = OrderSerializer(data=request.data)
-            if serializer.is_valid():
+            if not serializer.is_valid():
+                return Response(
+                    error_response(
+                        GeneralMessages.VALIDATION_ERROR_MESSAGE,
+                        ResponseCodes.VALIDATION_ERROR,
+                        serializer.errors,
+                    ),
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            customer = serializer.validated_data.get('customer')
+            delivery = serializer.validated_data.get('delivery','PICKUP')
+            items = serializer.validated_data.get('items',[])
+            
+            # handle customer not found 
+            try:
+                customer_from_db = get_object_or_404(Customer,pk=customer['id'])  
+                                 
+            except Http404:
+                return Response(error_response(
+                    GeneralMessages.CUSTOMER_NOT_FOUND,
+                    ResponseCodes.CUSTOMER_NOT_FOUND,
+                    ),status=status.HTTP_404_NOT_FOUND)
+            
+            with transaction.atomic():
+                    # delivery type 
+                DELIVERY_TYPE_MAP = {
+                    "PICKUP":Order.DeliveryChoice.PICKUP,
+                    "DELIVERY":Order.DeliveryChoice.DELIVERY,
+                }
+                delivery_type = DELIVERY_TYPE_MAP.get(delivery.get('type'),Order.DeliveryChoice.PICKUP)
                 
-                customer = serializer.validated_data.get('customer')
-                delivery = serializer.validated_data.get('delivery','PICKUP')
-                items = serializer.validated_data.get('items',[])
+                # payment type  
+                # first set the payment_status to unpaid
+                payment_status = Order.PaymentChoice.UNPAID
+                if serializer.validated_data.get('payment'): #check payment is paid (true,false)
+                    payment_status = Order.PaymentChoice.PAID  #if payment is true then set the payment status to "PAID"
                 
-                # handle customer not found 
-                try:
-                    customer_from_db = get_object_or_404(Customer,pk=customer['id'])  
-                                     
-                except Http404:
-                    return Response(error_response(
-                        GeneralMessages.CUSTOMER_NOT_FOUND,
-                        ResponseCodes.CUSTOMER_NOT_FOUND,
-                        ),status=status.HTTP_404_NOT_FOUND)
-                
-                with transaction.atomic():
-                        # delivery type 
-                    DELIVERY_TYPE_MAP = {
-                        "PICKUP":Order.DeliveryChoice.PICKUP,
-                        "DELIVERY":Order.DeliveryChoice.DELIVERY,
-                    }
-                    delivery_type = DELIVERY_TYPE_MAP.get(delivery.get('type'),Order.DeliveryChoice.PICKUP)
+                # create a order 
+                order = Order.objects.create(
+                    customer = customer_from_db,
+                    delivery_type= delivery_type,
                     
-                    # payment type  
-                    # first set the payment_status to unpaid
-                    payment_status = Order.PaymentChoice.UNPAID
-                    if serializer.validated_data.get('payment'): #check payment is paid (true,false)
-                        payment_status = Order.PaymentChoice.PAID  #if payment is true then set the payment status to "PAID"
-                    
-                    # create a order 
-                    order = Order.objects.create(
-                        customer = customer_from_db,
-                        delivery_type= delivery_type,
+                    delivery_address = delivery.get('address',""),
+                    delivery_charge = delivery.get('amount',0),
+                    payment_status= payment_status,
+                
+                )
+                
+                # get item type  
+                total_itemOrder_price= 0
+                for item in items:
+                    order_item = OrderItem.objects.create(
+                        order = order,
+                        measurement_type = item.get("item_obj"),
+                        quantity = item.get('quantity')
                         
-                        delivery_address = delivery.get('address',""),
-                        delivery_charge = delivery.get('amount',0),
-                        payment_status= payment_status,
-                    
                     )
-                    
-                    # get item type  
-                    total_itemOrder_price= 0
-                    for item in items:
-                        measurement_item = ItemType.objects.filter(id=item.get('item_id')).first()
-                        order_item = OrderItem.objects.create(
-                            order = order,
-                            measurement_type = measurement_item,
-                            quantity = item.get('quantity')
-                            
-                        )
-                        total_itemOrder_price += order_item.price 
-                    
-                    # update the order total price 
-                    # add delivery charge
-                    total_itemOrder_price = Decimal(total_itemOrder_price) + Decimal(order.delivery_charge)
-                    
-                    # apply discount
-                    discount_amount = Decimal(total_itemOrder_price) * (Decimal(order.discount) / Decimal(100))
-                    total_itemOrder_price = total_itemOrder_price - discount_amount
-                    
-                    # save final total
-                    order.total_price = total_itemOrder_price
-                    order.save()
-                    
-                    order_data = OrderResponseSerializer(order).data
+                    total_itemOrder_price += order_item.price 
+                
+                # update the order total price 
+                # add delivery charge
+                total_itemOrder_price = Decimal(total_itemOrder_price) + Decimal(order.delivery_charge)
+                
+                # apply discount
+                discount_amount = Decimal(total_itemOrder_price) * (Decimal(order.discount) / Decimal(100))
+                total_itemOrder_price = total_itemOrder_price - discount_amount
+                
+                # save final total
+                order.total_price = total_itemOrder_price
+                order.save()
+                
+                order_data = OrderResponseSerializer(order).data
             
             
             return Response(
@@ -112,6 +119,15 @@ class Create_order(APIView):
                     })
                 ,status=status.HTTP_201_CREATED
                 )
+        except DjangoValidationError as validation_error:
+            return Response(
+                error_response(
+                    GeneralMessages.VALIDATION_ERROR_MESSAGE,
+                    ResponseCodes.VALIDATION_ERROR,
+                    validation_error.message_dict or validation_error.messages,
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             print(e)
             return Response(

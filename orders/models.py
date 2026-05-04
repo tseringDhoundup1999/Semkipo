@@ -2,6 +2,8 @@ from django.db import models
 from customers.models import Customer
 from measurement.models import ItemType
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
+from decimal import Decimal, InvalidOperation
 
 # Create your models here.
 
@@ -48,8 +50,34 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"OrderItem #{self.id} - {self.measurement_type.name if self.measurement_type else 'No ItemType'}"
+
+    def clean(self):
+        quantity_value = self.quantity
+        try:
+            quantity_decimal = Decimal(str(quantity_value))
+        except (InvalidOperation, TypeError, ValueError):
+            raise ValidationError({"quantity": "Enter a valid quantity."})
+
+        if quantity_decimal <= 0:
+            raise ValidationError({"quantity": "Quantity must be greater than zero."})
+
+        if self.measurement_type and not self.measurement_type.allows_decimal_quantity():
+            if quantity_decimal % 1 != 0:
+                unit_name = (
+                    self.measurement_type.measurement_type.name
+                    if self.measurement_type.measurement_type
+                    else "this unit"
+                )
+                raise ValidationError(
+                    {
+                        "quantity": (
+                            f"Quantity for '{unit_name}' must be a whole number."
+                        )
+                    }
+                )
     
     def save(self,*args,**kwargs):
+        self.full_clean()
         item_price = self.measurement_type.price_per_unit if self.measurement_type else 0 
         self.price = item_price * self.quantity
         super().save(*args,**kwargs)

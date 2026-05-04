@@ -18,8 +18,33 @@ def validate_image(image):
 class MeasurementType(models.Model):
     name = models.CharField(max_length=100)
 
+    DECIMAL_ALLOWED_UNITS = {
+        "kg",
+        "kilogram",
+        "kilograms",
+        "g",
+        "gm",
+        "gram",
+        "grams",
+        "mg",
+        "ltr",
+        "liter",
+        "litre",
+        "liters",
+        "litres",
+        "ml",
+        "meter",
+        "metre",
+        "m",
+        "cm",
+    }
+
     def __str__(self):
         return self.name
+
+    def allows_decimal_quantity(self):
+        normalized_name = (self.name or "").strip().lower()
+        return normalized_name in self.DECIMAL_ALLOWED_UNITS
 
 class ItemType(models.Model):
     name = models.CharField(max_length=100)
@@ -31,6 +56,11 @@ class ItemType(models.Model):
 
     def __str__(self):
         return self.name
+
+    def allows_decimal_quantity(self):
+        if not self.measurement_type:
+            return False
+        return self.measurement_type.allows_decimal_quantity()
     
     
     

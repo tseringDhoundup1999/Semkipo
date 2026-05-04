@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from customers.models import Customer
 from .models import Order,OrderItem
+from measurement.models import ItemType
+from decimal import Decimal, InvalidOperation
 
 
 class CustomerSerializer(serializers.Serializer):
@@ -16,6 +18,41 @@ class ItemSerializer(serializers.Serializer):
     item_id = serializers.IntegerField()
     measurement_type_id = serializers.IntegerField()
     quantity = serializers.DecimalField(max_digits=10,decimal_places=2)
+
+    def validate(self, attrs):
+        item_id = attrs.get("item_id")
+        measurement_type_id = attrs.get("measurement_type_id")
+        quantity = attrs.get("quantity")
+
+        try:
+            item = ItemType.objects.select_related("measurement_type").get(id=item_id)
+        except ItemType.DoesNotExist:
+            raise serializers.ValidationError({"item_id": "Service item does not exist."})
+
+        item_measurement_type_id = item.measurement_type_id
+        if item_measurement_type_id != measurement_type_id:
+            raise serializers.ValidationError(
+                {"measurement_type_id": "Selected unit does not match the service item."}
+            )
+
+        try:
+            quantity_decimal = Decimal(str(quantity))
+        except (InvalidOperation, TypeError, ValueError):
+            raise serializers.ValidationError({"quantity": "Enter a valid quantity."})
+
+        if quantity_decimal <= 0:
+            raise serializers.ValidationError(
+                {"quantity": "Quantity must be greater than zero."}
+            )
+
+        if not item.allows_decimal_quantity() and quantity_decimal % 1 != 0:
+            unit_name = item.measurement_type.name if item.measurement_type else "this unit"
+            raise serializers.ValidationError(
+                {"quantity": f"Quantity for '{unit_name}' must be a whole number."}
+            )
+
+        attrs["item_obj"] = item
+        return attrs
 
 class OrderSerializer(serializers.Serializer):
     customer = CustomerSerializer()

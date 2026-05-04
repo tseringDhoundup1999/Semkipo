@@ -3,8 +3,8 @@ from .views import measurementView, itemTypeView, measurementDetailView, itemTyp
 
 urlpatterns = [
     path("", measurementView.as_view(), name="measurement"),
-    path('<int:id>', measurementDetailView.as_view(), name="measurement-detail"),
-    path("item/type", itemTypeView.as_view(), name="item-types"),
-    path("item/type/<int:id>", itemTypeDetailView.as_view(), name="item-type-detail"),
+    path("<int:id>/", measurementDetailView.as_view(), name="measurement-detail"),
+    path("item/type/", itemTypeView.as_view(), name="item-types"),
+    path("item/type/<int:id>/", itemTypeDetailView.as_view(), name="item-type-detail"),
     
 ]

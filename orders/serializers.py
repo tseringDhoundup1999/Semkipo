@@ -59,6 +59,7 @@ class OrderSerializer(serializers.Serializer):
     delivery = DeliverySerializer()
     items = ItemSerializer(many=True)
     payment = serializers.BooleanField()
+    promotion_rule_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class OrderUpdateSerializer(serializers.Serializer):

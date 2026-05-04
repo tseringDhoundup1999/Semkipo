@@ -91,6 +91,8 @@ class Create_order(APIView):
                 
                 # get item type  
                 total_itemOrder_price= 0
+                total_item_quantity = Decimal("0.00")
+                order_items = []
                 for item in items:
                     order_item = OrderItem.objects.create(
                         order = order,
@@ -98,12 +100,62 @@ class Create_order(APIView):
                         quantity = item.get('quantity')
                         
                     )
+                    order_items.append(order_item)
                     total_itemOrder_price += order_item.price 
+                    total_item_quantity += Decimal(str(order_item.quantity))
+
+                applied_promotion = None
+                promotion_discount_amount = Decimal("0.00")
+                active_promotion = PromotionRule.objects.filter(is_active=True).first()
+                customer_current_wash_count = Decimal(
+                    str(customer_from_db.loyalty_wash_count or 0)
+                )
+
+                if active_promotion and active_promotion.is_currently_applicable():
+                    if active_promotion.rule_type == PromotionRule.RuleType.DISCOUNT:
+                        discount_percent = Decimal(
+                            str(active_promotion.discount_percent or 0)
+                        )
+                        promotion_discount_amount = (
+                            Decimal(total_itemOrder_price) * discount_percent / Decimal("100")
+                        )
+                        applied_promotion = active_promotion
+
+                    if active_promotion.rule_type == PromotionRule.RuleType.LOYALTY:
+                        required_qty = Decimal(
+                            str(active_promotion.required_wash_count or 0)
+                        )
+                        free_qty = Decimal(str(active_promotion.free_wash_count or 0))
+                        next_wash_count = customer_current_wash_count + total_item_quantity
+
+                        if required_qty > 0 and next_wash_count >= required_qty and order_items:
+                            cheapest_unit_rate = min(
+                                Decimal(str(item.measurement_type.price_per_unit or 0))
+                                for item in order_items
+                            )
+                            promotion_discount_amount = cheapest_unit_rate * free_qty
+                            applied_promotion = active_promotion
+                            customer_from_db.loyalty_wash_count = Decimal("0.00")
+                        else:
+                            customer_from_db.loyalty_wash_count = next_wash_count
+                    else:
+                        customer_from_db.loyalty_wash_count = (
+                            customer_current_wash_count + total_item_quantity
+                        )
+                else:
+                    customer_from_db.loyalty_wash_count = (
+                        customer_current_wash_count + total_item_quantity
+                    )
                 
                 # update the order total price 
                 # add delivery charge
                 total_itemOrder_price = Decimal(total_itemOrder_price) + Decimal(order.delivery_charge)
                 
+                if promotion_discount_amount:
+                    total_itemOrder_price = total_itemOrder_price - promotion_discount_amount
+                    if total_itemOrder_price < 0:
+                        total_itemOrder_price = Decimal("0.00")
+
                 # apply discount
                 discount_amount = Decimal(total_itemOrder_price) * (Decimal(order.discount) / Decimal(100))
                 total_itemOrder_price = total_itemOrder_price - discount_amount
@@ -111,6 +163,7 @@ class Create_order(APIView):
                 # save final total
                 order.total_price = total_itemOrder_price
                 order.save()
+                customer_from_db.save(update_fields=["loyalty_wash_count", "updated_at"])
                 
                 order_data = OrderResponseSerializer(order).data
             
@@ -121,6 +174,12 @@ class Create_order(APIView):
                     ResponseCodes.ORDER_CREATED,
                     data={
                         'order':order_data,
+                        "promotion": {
+                            "id": applied_promotion.id,
+                            "name": applied_promotion.name,
+                            "rule_type": applied_promotion.rule_type,
+                            "discount_amount": f"{promotion_discount_amount:.2f}",
+                        } if applied_promotion else None,
                     })
                 ,status=status.HTTP_201_CREATED
                 )
@@ -765,6 +824,16 @@ class PromotionRules(APIView):
 
     def post(self, request):
         try:
+            if PromotionRule.objects.exists():
+                return Response(
+                    error_response(
+                        "Only one promotion rule is allowed. Edit the existing rule instead.",
+                        ResponseCodes.VALIDATION_ERROR,
+                        {"promotion": ["Only one promotion rule can exist at a time."]},
+                    ),
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             serializer = PromotionRuleSerializer(data=request.data)
             if not serializer.is_valid():
                 return Response(

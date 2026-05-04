@@ -369,12 +369,14 @@ class create_contact_view(APIView):
                 if created:
                     return Response(success_response(SuccessMessages.CUSTOMER_CREATED_MESSAGE,ResponseCodes.CUSTOMER_CREATED,data={
                         "customer_id":customer.id,
-                        "customer_name":customer.name
+                        "customer_name":customer.name,
+                        "loyalty_wash_count": str(customer.loyalty_wash_count or 0),
                     }),status=status.HTTP_201_CREATED)
                 
                 return Response(success_response(SuccessMessages.CUSTOMER_ALREADY_EXISTS, ResponseCodes.CUSTOMER_ALREADY_EXISTS, {
                     "customer_id":customer.id,
-                    "customer_name":customer.name
+                    "customer_name":customer.name,
+                    "loyalty_wash_count": str(customer.loyalty_wash_count or 0),
                 }), status=status.HTTP_200_OK)
 
                     
@@ -418,7 +420,8 @@ class update_name_view(APIView):
             return Response(success_response(SuccessMessages.CUSTOMER_UPDATE_NAME,ResponseCodes.CUSTOMER_NAME_UPDATED,{
                 "customer_id":customer.id,
                 "customer_name":customer.name,
-                "customer_contact":customer.contact
+                "customer_contact":customer.contact,
+                "loyalty_wash_count": str(customer.loyalty_wash_count or 0),
             }),status=status.HTTP_200_OK)
         
         except ValidationError as validation_error:

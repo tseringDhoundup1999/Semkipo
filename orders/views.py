@@ -36,6 +36,37 @@ from django.core.paginator import Paginator
 
 
 class Create_order(APIView):
+    def get_loyalty_promotion_discount(self, order_items, free_wash_quantity):
+        remaining_free_qty = Decimal(str(free_wash_quantity or 0))
+        if remaining_free_qty <= 0:
+            return Decimal("0.00")
+
+        discount_amount = Decimal("0.00")
+        sorted_items = sorted(
+            order_items,
+            key=lambda item: Decimal(str(item.measurement_type.price_per_unit or 0))
+            if item.measurement_type
+            else Decimal("0.00"),
+        )
+
+        for item in sorted_items:
+            if remaining_free_qty <= 0:
+                break
+
+            if not item.measurement_type:
+                continue
+
+            unit_rate = Decimal(str(item.measurement_type.price_per_unit or 0))
+            item_quantity = Decimal(str(item.quantity or 0))
+
+            if unit_rate <= 0 or item_quantity <= 0:
+                continue
+
+            applied_free_qty = min(item_quantity, remaining_free_qty)
+            discount_amount += unit_rate * applied_free_qty
+            remaining_free_qty -= applied_free_qty
+
+        return discount_amount
     
     def post(self,request):
         try:
@@ -128,14 +159,24 @@ class Create_order(APIView):
                         free_qty = Decimal(str(active_promotion.free_wash_count or 0))
                         next_wash_count = customer_current_wash_count + total_item_quantity
 
-                        if required_qty > 0 and next_wash_count >= required_qty and order_items:
-                            cheapest_unit_rate = min(
-                                Decimal(str(item.measurement_type.price_per_unit or 0))
-                                for item in order_items
-                            )
-                            promotion_discount_amount = cheapest_unit_rate * free_qty
-                            applied_promotion = active_promotion
-                            customer_from_db.loyalty_wash_count = Decimal("0.00")
+                        if required_qty > 0 and free_qty > 0 and order_items:
+                            reward_cycles = int(next_wash_count // required_qty)
+
+                            if reward_cycles > 0:
+                                total_free_wash_qty = free_qty * Decimal(reward_cycles)
+                                promotion_discount_amount = self.get_loyalty_promotion_discount(
+                                    order_items,
+                                    total_free_wash_qty,
+                                )
+                                if promotion_discount_amount > 0:
+                                    applied_promotion = active_promotion
+
+                                consumed_wash_count = required_qty * Decimal(reward_cycles)
+                                customer_from_db.loyalty_wash_count = (
+                                    next_wash_count - consumed_wash_count
+                                )
+                            else:
+                                customer_from_db.loyalty_wash_count = next_wash_count
                         else:
                             customer_from_db.loyalty_wash_count = next_wash_count
                     else:

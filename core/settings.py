@@ -86,23 +86,7 @@ SIMPLE_JWT = {
 # Custom user model
 AUTH_USER_MODEL = 'accounts.User' 
 
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL") 
-
-
-# Email settings for sending verification emails
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # Example; replace with your provider
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'your-email@gmail.com'
-EMAIL_HOST_PASSWORD = 'your-app-password'
-DEFAULT_FROM_EMAIL = 'your-email@gmail.com'
-
-
-
-# set env value
-FRONTEND_URL = config("FRONTEND_URL")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL")
 
 
 
@@ -189,4 +173,3 @@ STATIC_URL = 'static/'
 
 MEDIA_ROOT = BASE_DIR / "media" 
 MEDIA_URL = "/media/" 
-

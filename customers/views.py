@@ -25,6 +25,9 @@ from core.utils.api_response import error_response, success_response
 
 class Customers_view(APIView):
     SERVICE_BREAKDOWN_LIMIT = 6
+    DEFAULT_PAGE_SIZE = 20
+    MIN_PAGE_SIZE = 15
+    MAX_PAGE_SIZE = 20
 
     def clean_data(self, value):
         if value is None:
@@ -225,10 +228,26 @@ class Customers_view(APIView):
 
         return sorted(customers, key=sort_key, reverse=reverse)
 
+    def parse_positive_int(self, value, default_value):
+        try:
+            parsed_value = int(value)
+            return parsed_value if parsed_value > 0 else default_value
+        except (TypeError, ValueError):
+            return default_value
+
     def get(self, request):
         try:
             search = self.clean_data(request.GET.get("search"))
             sort = self.clean_data(request.GET.get("sort")) or "recent-desc"
+            page = self.parse_positive_int(request.GET.get("page"), 1)
+            requested_page_size = self.parse_positive_int(
+                request.GET.get("page_size"),
+                self.DEFAULT_PAGE_SIZE,
+            )
+            page_size = max(
+                self.MIN_PAGE_SIZE,
+                min(requested_page_size, self.MAX_PAGE_SIZE),
+            )
 
             orders_queryset = Order.objects.prefetch_related(
                 "items__measurement_type__measurement_type",
@@ -249,6 +268,11 @@ class Customers_view(APIView):
             customers = self.sort_customers(customers, sort)
 
             total_customers = len(customers)
+            total_pages = max((total_customers + page_size - 1) // page_size, 1)
+            current_page = min(page, total_pages)
+            start_index = (current_page - 1) * page_size
+            end_index = start_index + page_size
+            paginated_customers = customers[start_index:end_index]
             active_customers = sum(1 for customer in customers if customer["order_count"])
             customers_with_due = sum(
                 1 for customer in customers if customer["_sort_due"] > Decimal("0.00")
@@ -299,7 +323,15 @@ class Customers_view(APIView):
                             "top_service": service_mix[0] if service_mix else None,
                         },
                         "service_mix": service_mix,
-                        "customers": customers,
+                        "customers": paginated_customers,
+                        "pagination": {
+                            "count": total_customers,
+                            "current_page": current_page,
+                            "total_pages": total_pages,
+                            "page_size": page_size,
+                            "has_next": current_page < total_pages,
+                            "has_prev": current_page > 1,
+                        },
                     },
                 ),
                 status=status.HTTP_200_OK,

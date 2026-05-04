@@ -27,13 +27,22 @@ SECRET_KEY = 'django-insecure-=dknhcm7036j@$-84)6vy%m3g_m2ju=%db())t!k8o65yrhd)c
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "semkipo-frontend.vercel.app",
+     "a225-27-34-111-246.ngrok-free.app",
+    ]
 
 CORS_ALLOWED_ORIGINS = [
   "http://localhost:5173",  
+  "https://semkipo-frontend.vercel.app",
+  "http://localhost:5174",
 ]
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
+     "https://semkipo-frontend.vercel.app",
+     "http://localhost:5174"
 ]
 CORS_ALLOW_CREDENTIALS = True
 

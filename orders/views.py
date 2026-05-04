@@ -19,7 +19,8 @@ from core.constants.response_code import ResponseCodes
 from core.constants.response_message import GeneralMessages,SuccessMessages,ErrorMessages
 
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, DecimalField, Max, Sum, Value
+from django.db.models.functions import Coalesce, TruncDate
 
 import time 
 from django.utils import timezone
@@ -329,7 +330,303 @@ class Orders(APIView):
                 , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         
+        
 
+
+class Dashboard(APIView):
+    RECENT_ORDER_LIMIT = 5
+    TOP_LIMIT = 5
+
+    def format_money(self, value):
+        return f"{Decimal(value or 0):.2f}"
+
+    def format_decimal(self, value):
+        return f"{Decimal(value or 0):.2f}"
+
+    def get_status_counts(self, orders):
+        counts = {
+            "all": orders.count(),
+            Order.StatusChoice.PENDING: 0,
+            Order.StatusChoice.IN_PROGRESS: 0,
+            Order.StatusChoice.COMPLETED: 0,
+            Order.StatusChoice.CANCELLED: 0,
+        }
+
+        for row in orders.order_by().values("status").annotate(total=Count("id")):
+            counts[row["status"]] = row["total"]
+
+        return counts
+
+    def get_choice_counts(self, orders, field, choices):
+        counts = {choice.value: 0 for choice in choices}
+
+        for row in orders.order_by().values(field).annotate(total=Count("id")):
+            counts[row[field]] = row["total"]
+
+        return counts
+
+    def get_metric_change(self, current_value, previous_value):
+        current = Decimal(current_value or 0)
+        previous = Decimal(previous_value or 0)
+
+        if previous == 0:
+            return None if current == 0 else 100
+
+        change = ((current - previous) / previous) * Decimal(100)
+        return round(change, 1)
+
+    def get(self, request):
+        try:
+            now = timezone.now()
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            tomorrow_start = today_start + timedelta(days=1)
+            week_start = today_start - timedelta(days=6)
+            previous_week_start = week_start - timedelta(days=7)
+            last_30_days = now - timedelta(days=30)
+            month_start = today_start.replace(day=1)
+
+            orders = Order.objects.select_related("customer").prefetch_related(
+                "items__measurement_type",
+            )
+            order_items = OrderItem.objects.select_related(
+                "order",
+                "measurement_type",
+                "measurement_type__measurement_type",
+            )
+
+            money_field = DecimalField(max_digits=12, decimal_places=2)
+            quantity_field = DecimalField(max_digits=12, decimal_places=2)
+
+            total_revenue = orders.aggregate(
+                total=Coalesce(
+                    Sum("total_price"),
+                    Value(Decimal("0.00")),
+                    output_field=money_field,
+                ),
+            )["total"]
+            today_revenue = orders.filter(
+                created_at__gte=today_start,
+                created_at__lt=tomorrow_start,
+            ).aggregate(
+                total=Coalesce(
+                    Sum("total_price"),
+                    Value(Decimal("0.00")),
+                    output_field=money_field,
+                ),
+            )["total"]
+            month_revenue = orders.filter(created_at__gte=month_start).aggregate(
+                total=Coalesce(
+                    Sum("total_price"),
+                    Value(Decimal("0.00")),
+                    output_field=money_field,
+                ),
+            )["total"]
+            unpaid_amount = orders.filter(
+                payment_status=Order.PaymentChoice.UNPAID,
+            ).aggregate(
+                total=Coalesce(
+                    Sum("total_price"),
+                    Value(Decimal("0.00")),
+                    output_field=money_field,
+                ),
+            )["total"]
+            current_week_revenue = orders.filter(created_at__gte=week_start).aggregate(
+                total=Coalesce(
+                    Sum("total_price"),
+                    Value(Decimal("0.00")),
+                    output_field=money_field,
+                ),
+            )["total"]
+            previous_week_revenue = orders.filter(
+                created_at__gte=previous_week_start,
+                created_at__lt=week_start,
+            ).aggregate(
+                total=Coalesce(
+                    Sum("total_price"),
+                    Value(Decimal("0.00")),
+                    output_field=money_field,
+                ),
+            )["total"]
+
+            total_orders = orders.count()
+            today_orders = orders.filter(
+                created_at__gte=today_start,
+                created_at__lt=tomorrow_start,
+            ).count()
+            current_week_orders = orders.filter(created_at__gte=week_start).count()
+            previous_week_orders = orders.filter(
+                created_at__gte=previous_week_start,
+                created_at__lt=week_start,
+            ).count()
+            active_orders = orders.filter(
+                status__in=[
+                    Order.StatusChoice.PENDING,
+                    Order.StatusChoice.IN_PROGRESS,
+                ],
+            ).count()
+
+            trend_rows = (
+                orders.filter(created_at__gte=week_start)
+                .annotate(day=TruncDate("created_at"))
+                .values("day")
+                .annotate(
+                    order_count=Count("id"),
+                    revenue=Coalesce(
+                        Sum("total_price"),
+                        Value(Decimal("0.00")),
+                        output_field=money_field,
+                    ),
+                )
+                .order_by("day")
+            )
+            trend_map = {row["day"]: row for row in trend_rows}
+            revenue_trend = []
+            for index in range(7):
+                day = (week_start + timedelta(days=index)).date()
+                row = trend_map.get(day, {})
+                revenue_trend.append(
+                    {
+                        "date": day.isoformat(),
+                        "label": day.strftime("%a"),
+                        "order_count": row.get("order_count", 0),
+                        "revenue": self.format_money(row.get("revenue")),
+                    }
+                )
+
+            top_customers = []
+            customer_rows = (
+                orders.filter(customer__isnull=False)
+                .values("customer_id", "customer__name", "customer__contact")
+                .annotate(
+                    order_count=Count("id"),
+                    total_spent=Coalesce(
+                        Sum("total_price"),
+                        Value(Decimal("0.00")),
+                        output_field=money_field,
+                    ),
+                    last_order=Max("created_at"),
+                )
+                .order_by("-total_spent", "-order_count", "-last_order")[
+                    : self.TOP_LIMIT
+                ]
+            )
+            for row in customer_rows:
+                top_customers.append(
+                    {
+                        "id": row["customer_id"],
+                        "name": row["customer__name"] or "Unnamed customer",
+                        "contact": row["customer__contact"] or "-",
+                        "order_count": row["order_count"],
+                        "total_spent": self.format_money(row["total_spent"]),
+                        "last_order": row["last_order"],
+                    }
+                )
+
+            fast_selling_services = []
+            service_rows = (
+                order_items.filter(
+                    created_at__gte=last_30_days,
+                    measurement_type__isnull=False,
+                )
+                .values(
+                    "measurement_type_id",
+                    "measurement_type__name",
+                    "measurement_type__measurement_type__name",
+                )
+                .annotate(
+                    order_count=Count("order_id", distinct=True),
+                    quantity_sold=Coalesce(
+                        Sum("quantity"),
+                        Value(Decimal("0.00")),
+                        output_field=quantity_field,
+                    ),
+                    revenue=Coalesce(
+                        Sum("price"),
+                        Value(Decimal("0.00")),
+                        output_field=money_field,
+                    ),
+                    last_sold=Max("created_at"),
+                )
+                .order_by("-quantity_sold", "-order_count", "-revenue")[
+                    : self.TOP_LIMIT
+                ]
+            )
+            for row in service_rows:
+                fast_selling_services.append(
+                    {
+                        "id": row["measurement_type_id"],
+                        "name": row["measurement_type__name"] or "Service",
+                        "unit": row["measurement_type__measurement_type__name"]
+                        or "unit",
+                        "order_count": row["order_count"],
+                        "quantity_sold": self.format_decimal(row["quantity_sold"]),
+                        "revenue": self.format_money(row["revenue"]),
+                        "last_sold": row["last_sold"],
+                    }
+                )
+
+            recent_orders = OrderResponseSerializer(
+                orders.order_by("-created_at")[: self.RECENT_ORDER_LIMIT],
+                many=True,
+            ).data
+
+            dashboard_data = {
+                "summary": {
+                    "total_orders": total_orders,
+                    "today_orders": today_orders,
+                    "active_orders": active_orders,
+                    "total_revenue": self.format_money(total_revenue),
+                    "today_revenue": self.format_money(today_revenue),
+                    "month_revenue": self.format_money(month_revenue),
+                    "unpaid_amount": self.format_money(unpaid_amount),
+                    "average_order_value": self.format_money(
+                        total_revenue / total_orders if total_orders else 0,
+                    ),
+                    "orders_change_percent": self.get_metric_change(
+                        current_week_orders,
+                        previous_week_orders,
+                    ),
+                    "revenue_change_percent": self.get_metric_change(
+                        current_week_revenue,
+                        previous_week_revenue,
+                    ),
+                },
+                "status_counts": self.get_status_counts(orders),
+                "payment_counts": self.get_choice_counts(
+                    orders,
+                    "payment_status",
+                    Order.PaymentChoice,
+                ),
+                "delivery_counts": self.get_choice_counts(
+                    orders,
+                    "delivery_type",
+                    Order.DeliveryChoice,
+                ),
+                "top_customers": top_customers,
+                "fast_selling_services": fast_selling_services,
+                "revenue_trend": revenue_trend,
+                "recent_orders": recent_orders,
+            }
+
+            return Response(
+                success_response(
+                    GeneralMessages.GET_SUCCESS_MESSAGE,
+                    ResponseCodes.RETRIEVE_SUCCESS,
+                    data=dashboard_data,
+                ),
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            print(e)
+            return Response(
+                error_response(
+                    GeneralMessages.SERVER_ERROR_MESSAGE,
+                    ResponseCodes.SERVER_ERROR,
+                    None,
+                    str(e),
+                ),
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class Update_order(APIView):

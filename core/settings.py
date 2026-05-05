@@ -30,18 +30,18 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-     "a225-27-34-111-246.ngrok-free.app",
+    "www.semkipo.com",
+   
+     
     ]
 
 CORS_ALLOWED_ORIGINS = [
   "http://localhost:5173",  
-  "https://semkipo-frontend.vercel.app",
-  "http://localhost:5174",
+ "https://www.semkipo.com",
 ]
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-     "https://semkipo-frontend.vercel.app",
-     "http://localhost:5174"
+    "https://www.semkipo.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
 

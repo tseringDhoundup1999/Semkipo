@@ -27,12 +27,14 @@ from django.db import transaction
 from django.db.models import Count, DecimalField, Max, Sum, Value
 from django.db.models.functions import Coalesce, TruncDate, TruncHour, TruncMonth
 
-import time 
+import logging
 from django.utils import timezone
-from datetime import timedelta
-from django.utils.dateparse import parse_datetime
+from datetime import datetime, time as datetime_time, timedelta
+from django.utils.dateparse import parse_date, parse_datetime
 from django.core.paginator import Paginator
 
+
+logger = logging.getLogger(__name__)
 
 
 class Create_order(APIView):
@@ -234,7 +236,7 @@ class Create_order(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
-            print(e)
+            logger.exception("Unexpected error while creating order")
             return Response(
                 error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
                 , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -260,6 +262,22 @@ class Orders(APIView):
             return None
 
         return value
+
+    def get_date_boundary(self, value, end_of_day=False):
+        parsed_datetime = parse_datetime(value)
+
+        if parsed_datetime:
+            if timezone.is_naive(parsed_datetime):
+                return timezone.make_aware(parsed_datetime)
+            return parsed_datetime
+
+        parsed_date = parse_date(value)
+
+        if parsed_date:
+            boundary_time = datetime_time.max if end_of_day else datetime_time.min
+            return timezone.make_aware(datetime.combine(parsed_date, boundary_time))
+
+        return None
 
     def get_status_counts(self, orders):
         counts = {
@@ -331,14 +349,12 @@ class Orders(APIView):
         
         
     def get(self,request):
-        time.sleep(1)
         try:
             # --------------- CLEAN INPUT ------------------
             status_key = self.clean_data(request.GET.get('status'))
             payment_key = self.clean_data(request.GET.get('payment_status'))
             search = self.clean_data(request.GET.get('search'))
             sort = self.clean_data(request.GET.get('sort'))
-            from django.utils.dateparse import parse_datetime
             date_from =self.clean_data( request.GET.get('date_from'))
             date_to = self.clean_data(request.GET.get('date_to'))
             quick_date = self.clean_data(request.GET.get('quick_date'))
@@ -383,12 +399,30 @@ class Orders(APIView):
             
             #------------ DATE RANGE FILTER -------------------------
             if date_from:
-                date_from = parse_datetime(date_from)
-                orders = orders.filter(created_at__gte=date_from)
+                parsed_date_from = self.get_date_boundary(date_from)
+                if not parsed_date_from:
+                    return Response(
+                        error_response(
+                            "Choose a valid from date.",
+                            ResponseCodes.VALIDATION_ERROR,
+                            {"date_from": ["Use a valid date."]},
+                        ),
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                orders = orders.filter(created_at__gte=parsed_date_from)
             
             if date_to:
-                date_to = parse_datetime(date_to)
-                orders = orders.filter(created_at__lte=date_to)
+                parsed_date_to = self.get_date_boundary(date_to, end_of_day=True)
+                if not parsed_date_to:
+                    return Response(
+                        error_response(
+                            "Choose a valid to date.",
+                            ResponseCodes.VALIDATION_ERROR,
+                            {"date_to": ["Use a valid date."]},
+                        ),
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                orders = orders.filter(created_at__lte=parsed_date_to)
             
             
             # ----------- SORTING -----------
@@ -459,7 +493,7 @@ class Orders(APIView):
             
             
         except Exception as e:
-            print(e)
+            logger.exception("Unexpected error while listing orders")
             return Response(
                 error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
                 , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -884,7 +918,7 @@ class Dashboard(APIView):
                 status=status.HTTP_200_OK,
             )
         except Exception as e:
-            print(e)
+            logger.exception("Unexpected error while building dashboard")
             return Response(
                 error_response(
                     GeneralMessages.SERVER_ERROR_MESSAGE,
@@ -948,7 +982,7 @@ class Update_order(APIView):
                 ,status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            print(e)
+            logger.exception("Unexpected error while updating order")
             return Response(
                 error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
                 , status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -957,7 +991,6 @@ class Update_order(APIView):
 
 class Delete_order(APIView):
     def delete(self,request,id):
-        time.sleep(1)
         try:
             order = get_object_or_404(Order,pk=id)
             order.delete()
@@ -978,7 +1011,7 @@ class Delete_order(APIView):
                 )
             
         except Exception as e:
-            print(e)
+            logger.exception("Unexpected error while deleting order")
             return Response(
                 error_response(GeneralMessages.SERVER_ERROR_MESSAGE, ResponseCodes.SERVER_ERROR, None, str(e))
                 , status=status.HTTP_500_INTERNAL_SERVER_ERROR)

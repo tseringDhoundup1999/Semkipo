@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.validators import ValidationError
 from rest_framework import status
 from decimal import Decimal
+import logging
 
 from .models import Customer
 from .serializers import contactSerializers,customerNameSerializer
@@ -21,6 +22,7 @@ from core.utils.api_response import error_response, success_response
 
 
 # Create your views here.
+logger = logging.getLogger(__name__)
 
 
 class Customers_view(APIView):
@@ -338,7 +340,7 @@ class Customers_view(APIView):
             )
 
         except Exception as err:
-            print(err)
+            logger.exception("Unexpected error while listing customers")
             return Response(
                 error_response(
                     GeneralMessages.SERVER_ERROR_MESSAGE,
@@ -387,7 +389,7 @@ class create_contact_view(APIView):
             )
             
         except Exception as err:
-            print(err)
+            logger.exception("Unexpected error while creating or finding customer")
             return Response(error_response(GeneralMessages.SERVER_ERROR_MESSAGE,ResponseCodes.SERVER_ERROR,None,err),status=status.HTTP_500_INTERNAL_SERVER_ERROR)
          
         
@@ -430,7 +432,7 @@ class update_name_view(APIView):
             )
         
         except Exception as err:
-            print(err)
+            logger.exception("Unexpected error while updating customer name")
             return Response(error_response(GeneralMessages.SERVER_ERROR_MESSAGE,ResponseCodes.SERVER_ERROR,None,err),status=status.HTTP_500_INTERNAL_SERVER_ERROR)
          
         

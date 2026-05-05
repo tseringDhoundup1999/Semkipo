@@ -47,14 +47,18 @@ class measurementView(APIView):
             
             if MeasurementType.objects.filter(name__iexact=name).exists():
                 return Response(
-                    success_response(ErrorMessages.MEASUREMENT_ALREADY_EXISTS, ResponseCodes.MEASUREMENT_ALREADY_EXISTS, serializer.data)
+                    error_response(
+                        ErrorMessages.MEASUREMENT_ALREADY_EXISTS,
+                        ResponseCodes.MEASUREMENT_ALREADY_EXISTS,
+                        {"name": ["A measurement unit with this name already exists."]},
+                    )
                     , status=status.HTTP_400_BAD_REQUEST)  
                 
             MeasurementType.objects.create(name=name)
             return Response(
                     success_response(SuccessMessages.MEASUREMENT_TYPE_CREATED, ResponseCodes.MEASUREMENT_TYPE_CREATED, serializer.data)
                     , status=status.HTTP_201_CREATED)
-        except ValidationError as ve:
+        except DRFValidationError as ve:
             return Response(
                 error_response(GeneralMessages.VALIDATION_ERROR_MESSAGE, ResponseCodes.VALIDATION_ERROR, ve.detail, str(ve))
                 , status=status.HTTP_400_BAD_REQUEST)

@@ -1,14 +1,21 @@
 # ==== auth related modules ======= #
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, update_session_auth_hash
 
 
 # --------   serializer  ----------------------------------------
-from .serializers import RegisterSerializer,loginSerializer
+from .models import CompanySettings
+from .serializers import (
+    ChangePasswordSerializer,
+    CompanySettingsSerializer,
+    RegisterSerializer,
+    loginSerializer,
+)
 
 
 # ==== rest_framwork modules ====== #
 from rest_framework_simplejwt.views import TokenObtainPairView,TokenBlacklistView
 from rest_framework import status 
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView 
 from rest_framework.response import Response 
 from rest_framework_simplejwt.tokens import RefreshToken 
@@ -161,3 +168,86 @@ class LoginView(APIView):
 
 class LogoutView(TokenBlacklistView):
     pass 
+
+
+def get_company_settings():
+    settings_obj, _ = CompanySettings.objects.get_or_create(pk=1)
+    return settings_obj
+
+
+class CompanySettingsView(APIView):
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        return [IsAuthenticated()]
+
+    def get(self, request):
+        serializer = CompanySettingsSerializer(get_company_settings())
+        return Response(
+            {
+                "success": True,
+                "message": "Company settings loaded.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def patch(self, request):
+        serializer = CompanySettingsSerializer(
+            get_company_settings(),
+            data=request.data,
+            partial=True,
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "success": True,
+                    "message": "Company settings updated.",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {
+                "success": False,
+                "message": "Validation failed.",
+                "code": "VALIDATION_ERROR",
+                "errors": serializer.errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+
+        if serializer.is_valid():
+            user = serializer.save()
+            update_session_auth_hash(request, user)
+            return Response(
+                {
+                    "success": True,
+                    "message": "Password changed successfully.",
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {
+                "success": False,
+                "message": "Validation failed.",
+                "code": "VALIDATION_ERROR",
+                "errors": serializer.errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )

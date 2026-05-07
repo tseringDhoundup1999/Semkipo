@@ -67,6 +67,7 @@ INSTALLED_APPS = [
 
 ]
 
+# checking
 
 
 # Django REST Framework settings

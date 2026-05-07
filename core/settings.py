@@ -48,7 +48,7 @@ CSRF_TRUSTED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 
-# Application definition
+# Application definitiSECURE_SSL_REDIRECT = Trueon
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -107,6 +107,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'core.urls'
+SECURE_SSL_REDIRECT = True
 
 TEMPLATES = [
     {

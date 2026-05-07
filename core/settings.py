@@ -143,6 +143,9 @@ DATABASES = {
         "PASSWORD": "Dhoundup1999@",
         "HOST": "127.0.0.1",
         "PORT": "5432",
+          "OPTIONS": {
+            "sslmode": "require",
+        },
     }
 }
 

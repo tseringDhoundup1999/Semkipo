@@ -141,7 +141,7 @@ DATABASES = {
         "NAME": "semkipoc_semkipo_db",
         "USER": "semkipoc_semkipo_user",
         "PASSWORD": "Dhoundup1999@",
-        "HOST": "localhost",
+        "HOST": "127.0.0.1",
         "PORT": "5432",
     }
 }

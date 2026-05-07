@@ -33,18 +33,19 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "semkipo.com",
     "www.semkipo.com",
+    
    
      
     ]
 
 CORS_ALLOWED_ORIGINS = [
   "http://localhost:5173",  
- "https://www.semkipo.com",
+ "https://semkipo.com",
  "https://www.semkipo.com",
 ]
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-    "https://www.semkipo.com",
+    "https://semkipo.com",
     "https://www.semkipo.com",
 ]
 CORS_ALLOW_CREDENTIALS = True

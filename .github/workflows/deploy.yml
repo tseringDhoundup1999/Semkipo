@@ -19,7 +19,8 @@ jobs:
           port: 22
           script: |
             cd /home2/semkipoc/django_backend/Semkipo
-            git pull origin main
+            git fetch origin development
+            git reset --hard origin/development
             source /home2/semkipoc/virtualenv/django_backend/3.12/bin/activate
             pip install -r requirements.txt
             python manage.py migrate

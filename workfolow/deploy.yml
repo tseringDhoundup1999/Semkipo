@@ -1,0 +1,27 @@
+name: Deploy Django to cPanel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to cPanel
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          port: 22
+          script: |
+            cd /home2/semkipoc/django_backend/Semkipo
+            git pull origin main
+            source /home2/semkipoc/virtualenv/django_backend/3.12/bin/activate
+            pip install -r requirements.txt
+            python manage.py migrate
+            python manage.py collectstatic --noinput
+            touch /home2/semkipoc/django_backend/tmp/restart.txt

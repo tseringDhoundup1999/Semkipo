@@ -11,10 +11,10 @@ from .views import (
 
 urlpatterns = [
     path("", Orders.as_view()),
-    path("dashboard", Dashboard.as_view()),
-    path("place-order",Create_order.as_view()),
-    path("update/<int:id>",Update_order.as_view()),
-    path("delete/<int:id>",Delete_order.as_view()),
+    path("dashboard/", Dashboard.as_view()),
+    path("place-order/",Create_order.as_view()),
+    path("update/<int:id>/",Update_order.as_view()),
+    path("delete/<int:id>/",Delete_order.as_view()),
     path("promotions/", PromotionRules.as_view()),
     path("promotions/<int:id>/", PromotionRuleDetail.as_view()),
 ]

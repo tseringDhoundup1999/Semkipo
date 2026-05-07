@@ -140,7 +140,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "semkipoc_semkipo_db",
         "USER": "semkipoc_semkipo_user",
-        "PASSWORD": "your_password",
+        "PASSWORD": "Dhoundup1999@",
         "HOST": "localhost",
         "PORT": "5432",
     }

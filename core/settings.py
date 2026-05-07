@@ -138,11 +138,12 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # }
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "semkipoc_semkipo_db",
-        "USER": "semkipoc_semkipo_user",
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "semkipoc_your_db_name",
+        "USER": "semkipoc_your_user",
         "PASSWORD": "Dhoundup1999@",
-       
+        "HOST": "localhost",
+        "PORT": "3306",
     }
 }
 

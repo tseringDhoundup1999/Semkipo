@@ -67,6 +67,8 @@ INSTALLED_APPS = [
 
 ]
 
+
+
 # Django REST Framework settings
 from datetime import timedelta
 

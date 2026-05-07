@@ -1,7 +1,7 @@
 import os
 import sys
 
-sys.path.insert(0, "/home2/semkipoc/django_backend")
+sys.path.insert(0, "/home2/semkipoc/django_backend/Semkipo")
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
